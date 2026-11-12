@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# (the Python template's `lib/` was removed: it also matched apps/web/src/lib, which is source code)
 lib64/
 parts/
 sdist/
