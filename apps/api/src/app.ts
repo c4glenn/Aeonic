@@ -25,6 +25,7 @@ import { schema } from './db';
 import { Bus, startWebhookDispatcher, type WebhookOptions } from './events';
 import { HttpError } from './problem';
 import * as S from './schemas';
+import { Calendars } from './calendars';
 import { Store } from './service';
 
 export interface AppOptions {
@@ -32,6 +33,8 @@ export interface AppOptions {
   db: Db;
   clock?: () => Date;
   webhook?: WebhookOptions;
+  /** Injected for tests; used to download ICS calendars. */
+  fetch?: typeof fetch;
 }
 
 const problemContent = { 'application/json': { schema: S.Problem } };
@@ -57,6 +60,8 @@ export function createApp(opts: AppOptions) {
   const bus = new Bus();
   const store = new Store(db, cfg, bus, opts.clock);
   const stopWebhooks = startWebhookDispatcher(db, bus, opts.webhook);
+  const calendars = new Calendars(db, bus, opts.fetch);
+  const stopRefresh = opts.fetch || cfg.icsRefreshMinutes <= 0 ? () => {} : calendars.start(cfg.icsRefreshMinutes * 60_000);
 
   const app = new OpenAPIHono<Env>({
     defaultHook: (result) => {
@@ -284,11 +289,14 @@ export function createApp(opts: AppOptions) {
   app.openapi(
     createRoute({
       method: 'put', path: '/api/v1/tasks/{id}/schedule', tags: ['Tasks'],
-      summary: 'Schedule a task on a date', description: 'Fails with 409 (and the blockers) if the task is still blocked.',
-      request: { params: idParam, body: body(z.object({ date: S.DateStr })) },
+      summary: 'Schedule a task on a date (optionally as a timed block)', description: 'Give `startTime` (and optionally `durationMinutes`, default 30) for a timed block; omit it for an untimed task. Fails with 409 (and the blockers) if the task is still blocked.',
+      request: { params: idParam, body: body(S.ScheduleBody) },
       responses: { ...ok(S.ScheduleResult), ...errs, 409: { description: 'Blocked', content: problemContent } },
     }),
-    (c) => c.json(store.schedule(c.req.valid('param').id, c.req.valid('json').date), 200),
+    (c) => {
+      const { date, startTime, durationMinutes } = c.req.valid('json');
+      return c.json(store.schedule(c.req.valid('param').id, date, { startTime, durationMinutes }), 200);
+    },
   );
   app.openapi(
     createRoute({
@@ -306,8 +314,8 @@ export function createApp(opts: AppOptions) {
       responses: { ...ok(S.PlanResult), ...errs, 409: { description: 'Blocked', content: problemContent } },
     }),
     (c) => {
-      const { date, goal } = c.req.valid('json');
-      return c.json(store.plan(c.req.valid('param').id, date, goal), 200);
+      const { date, goal, startTime, durationMinutes } = c.req.valid('json');
+      return c.json(store.plan(c.req.valid('param').id, date, goal, { startTime, durationMinutes }), 200);
     },
   );
   app.openapi(
@@ -448,6 +456,70 @@ export function createApp(opts: AppOptions) {
     (c) => c.json(store.import(c.req.valid('json')), 200),
   );
 
+  // ----- calendars (ICS subscriptions) -----
+  app.openapi(
+    createRoute({
+      method: 'get', path: '/api/v1/calendars', tags: ['Calendars'], summary: 'List subscribed ICS calendars',
+      responses: { ...ok(z.object({ items: z.array(S.CalendarSchema) })), 401: errs[401] },
+    }),
+    (c) => c.json({ items: calendars.list() }, 200),
+  );
+  app.openapi(
+    createRoute({
+      method: 'post', path: '/api/v1/calendars', tags: ['Calendars'],
+      summary: 'Subscribe to an ICS calendar',
+      description: 'Accepts http(s):// and webcal:// links. The link is downloaded and validated before it is saved, then refreshed periodically.',
+      request: { body: body(z.object({ name: z.string().min(1).max(80), url: z.string().min(8).max(2000), color: S.CalendarColor.optional() })) },
+      responses: {
+        201: { description: 'Created', content: { 'application/json': { schema: S.CalendarSchema } } },
+        401: errs[401],
+        422: { description: 'Not a valid ICS link', content: problemContent },
+        502: { description: 'Could not download the link', content: problemContent },
+      },
+    }),
+    async (c) => c.json(await calendars.add(c.req.valid('json')), 201),
+  );
+  app.openapi(
+    createRoute({
+      method: 'patch', path: '/api/v1/calendars/{id}', tags: ['Calendars'], summary: 'Rename, recolor, enable or disable a calendar',
+      request: { params: idParam, body: body(z.object({ name: z.string().min(1).max(80), enabled: z.boolean(), color: S.CalendarColor }).partial()) },
+      responses: { ...ok(S.CalendarSchema), ...errs },
+    }),
+    (c) => c.json(calendars.update(c.req.valid('param').id, c.req.valid('json')), 200),
+  );
+  app.openapi(
+    createRoute({
+      method: 'delete', path: '/api/v1/calendars/{id}', tags: ['Calendars'], summary: 'Unsubscribe from a calendar',
+      request: { params: idParam }, responses: { 204: { description: 'Removed' }, ...errs },
+    }),
+    (c) => {
+      calendars.remove(c.req.valid('param').id);
+      return c.body(null, 204);
+    },
+  );
+  app.openapi(
+    createRoute({
+      method: 'post', path: '/api/v1/calendars/{id}/refresh', tags: ['Calendars'], summary: 'Re-download a calendar now',
+      request: { params: idParam }, responses: { ...ok(S.CalendarSchema), ...errs },
+    }),
+    async (c) => c.json(await calendars.refresh(c.req.valid('param').id), 200),
+  );
+  app.openapi(
+    createRoute({
+      method: 'get', path: '/api/v1/calendar-events', tags: ['Calendars'],
+      summary: 'Events from all enabled calendars, recurrences expanded',
+      description: 'Returns events overlapping the local dates from..to (inclusive, max 400 days). The window is padded by a day or two so clients can clip per day in their own timezone.',
+      request: { query: z.object({ from: S.DateStr, to: S.DateStr }) },
+      responses: { ...ok(z.object({ items: z.array(S.CalendarEventSchema) })), 401: errs[401], 422: { description: 'Bad range', content: problemContent } },
+    }),
+    (c) => {
+      const { from, to } = c.req.valid('query');
+      const span = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+      if (!(span >= 0) || span > 400) throw new HttpError(422, 'Bad range', '`to` must be on or after `from`, within 400 days');
+      return c.json({ items: calendars.events(from, to) }, 200);
+    },
+  );
+
   // ----- events (SSE) -----
   app.get('/api/v1/events', (c) =>
     streamSSE(c, async (stream) => {
@@ -476,5 +548,11 @@ export function createApp(opts: AppOptions) {
   });
   app.get('/api/docs', Scalar({ url: '/api/openapi.json', theme: 'purple' }));
 
-  return { app, store, bus, stop: stopWebhooks };
+  return {
+    app, store, bus, calendars,
+    stop: () => {
+      stopWebhooks();
+      stopRefresh();
+    },
+  };
 }

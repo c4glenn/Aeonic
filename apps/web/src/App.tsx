@@ -1,10 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, pointerWithin, rectIntersection, useSensor, useSensors,
-  type CollisionDetection, type DragEndEvent, type DragStartEvent,
+  type CollisionDetection, type DragEndEvent, type DragMoveEvent, type DragStartEvent,
 } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, CalendarDays, ChartGantt, ListTodo, Settings as SettingsIcon } from 'lucide-react';
+import { clampBlock, DEFAULT_DURATION, minutesToTime } from '@todo/domain';
 import { ApiError, unwrap, type Project, type Task } from '@todo/client';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
@@ -16,10 +17,12 @@ import { ProjectCard } from '@/features/projects/ProjectCard';
 import { Settings } from '@/features/settings/Settings';
 import { Toolbar } from '@/features/toolbar/Toolbar';
 import { WeekStrip } from '@/features/week/WeekStrip';
+import type { Ghost } from '@/features/week/TimeGrid';
+import { PX_PER_MIN } from '@/features/week/time-constants';
 import { GanttView } from '@/features/views/GanttView';
 import { ListView } from '@/features/views/ListView';
 import { MonthView } from '@/features/views/MonthView';
-import { api, useLiveSync } from '@/lib/api';
+import { api, useCalendarEvents, useLiveSync } from '@/lib/api';
 import { useBoard } from '@/lib/board';
 import { usePlanTask, useScheduleTask, useUnscheduleTask, useUpdateTask } from '@/lib/mutations';
 import { useViewState } from '@/lib/view-state';
@@ -31,6 +34,36 @@ const collision: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
   return hits.length ? hits : rectIntersection(args);
 };
+
+function pointerY(evt: Event | null): number | null {
+  if (!evt) return null;
+  if ('clientY' in evt) return (evt as MouseEvent).clientY;
+  if ('touches' in evt) {
+    const t = evt as TouchEvent;
+    return (t.touches[0] ?? t.changedTouches[0])?.clientY ?? null;
+  }
+  return null;
+}
+
+interface TimeDrop extends Ghost {
+  task: Task;
+}
+
+/**
+ * Where on the hour grid is the pointer? Uses the live pointer position (not dnd-kit's delta, which also
+ * includes auto-scroll compensation) against the column's current rect, so scrolling mid-drag stays correct.
+ */
+function timeDrop(e: DragMoveEvent | DragEndEvent, pointer: number | null, grab: number): TimeDrop | null {
+  const over = e.over ? String(e.over.id) : '';
+  const task = e.active.data.current?.task as Task | undefined;
+  if (!task || !over.startsWith('time:') || pointer === null) return null; // null pointer = keyboard drag
+  const date = over.slice(5);
+  const col = document.querySelector(`[data-timecol="${date}"]`);
+  if (!col) return null;
+  const raw = (pointer - grab - col.getBoundingClientRect().top) / PX_PER_MIN;
+  const duration = task.startTime && task.durationMinutes ? task.durationMinutes : DEFAULT_DURATION;
+  return { task, date, duration, startMin: clampBlock(raw, duration).start };
+}
 
 function useHash() {
   return useSyncExternalStore(
@@ -109,6 +142,21 @@ function BoardView({ mode }: { mode: Mode }) {
   const [taskDialog, setTaskDialog] = useState<TaskDialogState>(null);
   const [projectDialog, setProjectDialog] = useState<ProjectDialogState>(null);
   const [dragging, setDragging] = useState<Task | null>(null);
+  const [ghost, setGhost] = useState<Ghost | null>(null);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  const grabRef = useRef(0);
+  const track = useRef((ev: Event) => {
+    const t = ev as TouchEvent;
+    const p = 'touches' in ev ? (t.touches[0] ?? t.changedTouches[0]) : (ev as PointerEvent);
+    if (p) pointerRef.current = { x: p.clientX, y: p.clientY };
+  }).current;
+  const stopTracking = () => {
+    window.removeEventListener('pointermove', track);
+    window.removeEventListener('touchmove', track);
+    pointerRef.current = null;
+  };
+  useEffect(() => stopTracking, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const weekEvents = useCalendarEvents(board.days[0]!, board.days[6]!, mode === 'week');
 
   const schedule = useScheduleTask();
   const unschedule = useUnscheduleTask();
@@ -122,19 +170,60 @@ function BoardView({ mode }: { mode: Mode }) {
     useSensor(KeyboardSensor),
   );
 
-  const place = (task: Task, date: string) => {
-    if (task.scheduledDate === date) return;
-    if (task.scheduledDate) schedule.mutate({ id: task.id, date }); // already scheduled: just move it
+  /** startMin set = dropped on the hour grid (timed block); otherwise an untimed day. */
+  /** The hour grid should only auto-scroll when the pointer is inside it (otherwise dragging in from a card below scrolls it away). */
+  const canScroll = (el: Element) => {
+    if (!(el instanceof HTMLElement) || el.dataset.autoscroll !== 'pointer') return true;
+    const p = pointerRef.current;
+    if (!p) return false;
+    const r = el.getBoundingClientRect();
+    return p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+  };
+
+  const place = (task: Task, date: string, startMin?: number) => {
+    if (startMin !== undefined) {
+      const startTime = minutesToTime(startMin);
+      const durationMinutes = task.startTime && task.durationMinutes ? task.durationMinutes : DEFAULT_DURATION;
+      if (task.scheduledDate === date && task.startTime === startTime) return;
+      if (task.scheduledDate) schedule.mutate({ id: task.id, date, startTime, durationMinutes }); // moving an existing task
+      else setPlan({ task, date, startTime });
+      return;
+    }
+    if (task.scheduledDate === date && !task.startTime) return;
+    if (task.scheduledDate) schedule.mutate({ id: task.id, date }); // already scheduled: just move it (drops any time)
     else setPlan({ task, date }); // otherwise ask what they're planning to do
   };
 
+  const onDragMove = (e: DragMoveEvent) => {
+    const d = timeDrop(e, pointerRef.current?.y ?? null, grabRef.current);
+    setGhost((g) => (d ? (g && g.date === d.date && g.startMin === d.startMin && g.duration === d.duration ? g : { date: d.date, startMin: d.startMin, duration: d.duration }) : g ? null : g));
+  };
+
   const onDragEnd = (e: DragEndEvent) => {
+    const t = timeDrop(e, pointerRef.current?.y ?? null, grabRef.current);
+    stopTracking();
     setDragging(null);
+    setGhost(null);
     const task = e.active.data.current?.task as Task | undefined;
     const over = e.over ? String(e.over.id) : null;
-    if (task && over && DATE_RE.test(over)) place(task, over);
+    if (!task || !over) return;
+    if (t) place(task, t.date, t.startMin);
+    else if (over.startsWith('time:')) place(task, over.slice(5));
+    else if (DATE_RE.test(over)) place(task, over);
   };
-  const onDragStart = (e: DragStartEvent) => setDragging((e.active.data.current?.task as Task) ?? null);
+  const onDragStart = (e: DragStartEvent) => {
+    const task = (e.active.data.current?.task as Task) ?? null;
+    setDragging(task);
+    const y = pointerY(e.activatorEvent);
+    pointerRef.current = y === null ? null : { x: 0, y };
+    // moving an existing block: keep the grab point under the cursor instead of snapping its top to it
+    const block = task?.startTime ? document.querySelector(`[data-block="${task.id}"]`) : null;
+    grabRef.current = block && y !== null ? y - block.getBoundingClientRect().top : 0;
+    if (y !== null) {
+      window.addEventListener('pointermove', track);
+      window.addEventListener('touchmove', track, { passive: true });
+    }
+  };
 
   const handlers = {
     onOpen: (t: Task) => setTaskDialog({ mode: 'edit', task: t }),
@@ -142,6 +231,8 @@ function BoardView({ mode }: { mode: Mode }) {
     onToggleDone: (t: Task) => update.mutate({ id: t.id, patch: { done: !t.done } }),
     onUnschedule: (t: Task) => unschedule.mutate(t.id),
   };
+  const onResize = (t: Task, durationMinutes: number) =>
+    t.scheduledDate && t.startTime && schedule.mutate({ id: t.id, date: t.scheduledDate, startTime: t.startTime, durationMinutes });
 
   const filtering = !!(view.tags.length || view.importance.length || view.projects.length);
   const tasksByProject = new Map<string, Task[]>();
@@ -150,20 +241,22 @@ function BoardView({ mode }: { mode: Mode }) {
 
   // Ensure edit dialog reflects live data after refetch.
   useEffect(() => {
-    setTaskDialog((s) => (s?.mode === 'edit' && board.taskById.has(s.task.id) ? { mode: 'edit', task: board.taskById.get(s.task.id)! } : s));
+    setTaskDialog((s) => {
+      if (s?.mode !== 'edit') return s;
+      const fresh = board.taskById.get(s.task.id);
+      return fresh && fresh !== s.task ? { mode: 'edit', task: fresh } : s; // no-op when unchanged, or it would loop
+    });
   }, [board.taskById]);
 
   return (
-    <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+    <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={() => { stopTracking(); setDragging(null); setGhost(null); }} autoScroll={{ canScroll }}>
       <Toolbar view={view} setView={setView} board={board} onAddProject={() => setProjectDialog({ mode: 'create' })}
         onAddTask={() => board.projects[0] && setTaskDialog({ mode: 'create', projectId: view.projects[0] ?? board.projects[0].id })}
       />
 
       {mode === 'week' && (
         <>
-          <div className="z-20 -mx-4 bg-background px-4 pb-1 pt-1 max-sm:sticky max-sm:top-0 max-sm:max-h-[50dvh] max-sm:overflow-y-auto">
-            <WeekStrip board={board} {...handlers} />
-          </div>
+          <WeekStrip board={board} events={weekEvents} ghost={ghost} onResize={onResize} {...handlers} />
 
           {board.loading ? (
             <p className="py-10 text-center text-muted-foreground">Loading…</p>
@@ -203,11 +296,11 @@ function BoardView({ mode }: { mode: Mode }) {
         target={plan}
         onClose={() => setPlan(null)}
         onWhole={(t) => {
-          schedule.mutate({ id: t.task.id, date: t.date });
+          schedule.mutate({ id: t.task.id, date: t.date, startTime: t.startTime, durationMinutes: t.startTime ? DEFAULT_DURATION : undefined });
           setPlan(null);
         }}
         onGoal={(t, goal) => {
-          planTask.mutate({ id: t.task.id, date: t.date, goal });
+          planTask.mutate({ id: t.task.id, date: t.date, goal, startTime: t.startTime, durationMinutes: t.startTime ? DEFAULT_DURATION : undefined });
           setPlan(null);
         }}
       />

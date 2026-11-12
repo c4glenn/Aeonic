@@ -5,9 +5,9 @@ test('week strip shows 7 days with weekends styled differently', async ({ page }
   await signIn(page);
   const days = page.locator('section[data-date]');
   await expect(days).toHaveCount(7);
-  const weekendCount = await page.locator('.weekend-surface').count();
+  const weekendCount = await page.locator('section[data-date].weekend-surface').count();
   expect(weekendCount).toBeGreaterThanOrEqual(1);
-  expect(weekendCount).toBeLessThanOrEqual(3);
+  expect(weekendCount).toBeLessThanOrEqual(2);
   await page.screenshot({ path: 'e2e/.tmp/board-desktop.png', fullPage: true });
 });
 

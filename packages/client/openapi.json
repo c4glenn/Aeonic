@@ -214,6 +214,24 @@
             "example": "2026-11-14",
             "description": "Calendar date, YYYY-MM-DD (no timezone)"
           },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "14:30",
+            "description": "Wall-clock time, HH:MM (no timezone)"
+          },
+          "durationMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 5,
+            "maximum": 1440,
+            "description": "Minutes; defaults to 30 when a start time is given"
+          },
           "done": {
             "type": "boolean"
           },
@@ -302,6 +320,8 @@
           "hardDue",
           "softDue",
           "scheduledDate",
+          "startTime",
+          "durationMinutes",
           "done",
           "tags",
           "blockedBy",
@@ -456,6 +476,38 @@
           "scheduledDependents"
         ]
       },
+      "ScheduleBody": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-11-14",
+            "description": "Calendar date, YYYY-MM-DD (no timezone)"
+          },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "14:30",
+            "description": "Omit or null for an untimed (all-day style) task"
+          },
+          "durationMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 5,
+            "maximum": 1440,
+            "description": "Minutes; defaults to 30 when a start time is given"
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
       "PlanResult": {
         "type": "object",
         "properties": {
@@ -486,6 +538,24 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "example": "2026-11-14",
             "description": "Calendar date, YYYY-MM-DD (no timezone)"
+          },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "14:30",
+            "description": "Wall-clock time, HH:MM (no timezone)"
+          },
+          "durationMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 5,
+            "maximum": 1440,
+            "description": "Minutes; defaults to 30 when a start time is given"
           },
           "goal": {
             "type": "string",
@@ -750,6 +820,24 @@
                   "example": "2026-11-14",
                   "description": "Calendar date, YYYY-MM-DD (no timezone)"
                 },
+                "startTime": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                  "example": "14:30",
+                  "description": "Wall-clock time, HH:MM (no timezone)"
+                },
+                "durationMinutes": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 5,
+                  "maximum": 1440,
+                  "description": "Minutes; defaults to 30 when a start time is given"
+                },
                 "done": {
                   "type": "boolean"
                 },
@@ -789,6 +877,117 @@
           "version",
           "projects",
           "tasks"
+        ]
+      },
+      "Calendar": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Host of the ICS link. The full URL is never returned (it often contains a secret)."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "sky",
+              "orange",
+              "green",
+              "pink",
+              "yellow",
+              "vermillion"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "fetchedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Last refresh error; previous data is kept while set"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "source",
+          "color",
+          "enabled",
+          "fetchedAt",
+          "error"
+        ]
+      },
+      "CalendarEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "calendarId": {
+            "type": "string"
+          },
+          "calendarName": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "sky",
+              "orange",
+              "green",
+              "pink",
+              "yellow",
+              "vermillion"
+            ]
+          },
+          "uid": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "description": "All-day: YYYY-MM-DD. Timed: ISO-8601 instant (UTC)."
+          },
+          "end": {
+            "type": "string",
+            "description": "All-day: exclusive YYYY-MM-DD (as in ICS). Timed: ISO-8601 instant (UTC)."
+          },
+          "allDay": {
+            "type": "boolean"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "calendarId",
+          "calendarName",
+          "color",
+          "uid",
+          "title",
+          "start",
+          "end",
+          "allDay",
+          "location"
         ]
       }
     },
@@ -1430,8 +1629,8 @@
         "tags": [
           "Tasks"
         ],
-        "summary": "Schedule a task on a date",
-        "description": "Fails with 409 (and the blockers) if the task is still blocked.",
+        "summary": "Schedule a task on a date (optionally as a timed block)",
+        "description": "Give `startTime` (and optionally `durationMinutes`, default 30) for a timed block; omit it for an untimed task. Fails with 409 (and the blockers) if the task is still blocked.",
         "parameters": [
           {
             "schema": {
@@ -1447,18 +1646,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "example": "2026-11-14",
-                    "description": "Calendar date, YYYY-MM-DD (no timezone)"
-                  }
-                },
-                "required": [
-                  "date"
-                ]
+                "$ref": "#/components/schemas/ScheduleBody"
               }
             }
           }
@@ -2294,6 +2482,383 @@
           },
           "422": {
             "description": "Invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendars": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "List subscribed ICS calendars",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Calendar"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Subscribe to an ICS calendar",
+        "description": "Accepts http(s):// and webcal:// links. The link is downloaded and validated before it is saved, then refreshed periodically.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 2000
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "sky",
+                      "orange",
+                      "green",
+                      "pink",
+                      "yellow",
+                      "vermillion"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Calendar"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Not a valid ICS link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Could not download the link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendars/{id}": {
+      "patch": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Rename, recolor, enable or disable a calendar",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "color": {
+                    "type": "string",
+                    "enum": [
+                      "sky",
+                      "orange",
+                      "green",
+                      "pink",
+                      "yellow",
+                      "vermillion"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Calendar"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Unsubscribe from a calendar",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendars/{id}/refresh": {
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Re-download a calendar now",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Calendar"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar-events": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Events from all enabled calendars, recurrences expanded",
+        "description": "Returns events overlapping the local dates from..to (inclusive, max 400 days). The window is padded by a day or two so clients can clip per day in their own timezone.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-11-14",
+              "description": "Calendar date, YYYY-MM-DD (no timezone)"
+            },
+            "required": true,
+            "description": "Calendar date, YYYY-MM-DD (no timezone)",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "example": "2026-11-14",
+              "description": "Calendar date, YYYY-MM-DD (no timezone)"
+            },
+            "required": true,
+            "description": "Calendar date, YYYY-MM-DD (no timezone)",
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CalendarEvent"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Bad range",
             "content": {
               "application/json": {
                 "schema": {

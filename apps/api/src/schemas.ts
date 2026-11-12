@@ -7,6 +7,11 @@ export const DateStr = z
 export const Importance = z.number().int().min(1).max(4).openapi({ description: '1 = low … 4 = critical' });
 export const Tags = z.array(z.string().min(1).max(40)).max(30);
 export const Id = z.string().min(1);
+export const TimeStr = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+  .openapi({ example: '14:30', description: 'Wall-clock time, HH:MM (no timezone)' });
+export const Duration = z.number().int().min(5).max(1440).openapi({ description: 'Minutes; defaults to 30 when a start time is given' });
 
 export const Urgency = z
   .object({
@@ -26,6 +31,8 @@ export const TaskSchema = z
     hardDue: DateStr.nullable(),
     softDue: DateStr.nullable(),
     scheduledDate: DateStr.nullable(),
+    startTime: TimeStr.nullable(),
+    durationMinutes: Duration.nullable(),
     done: z.boolean(),
     tags: z.array(z.string()),
     blockedBy: z.array(z.string()),
@@ -113,9 +120,19 @@ export const ScheduleResult = z
   })
   .openapi('ScheduleResult');
 
+export const ScheduleBody = z
+  .object({
+    date: DateStr,
+    startTime: TimeStr.nullable().optional().openapi({ description: 'Omit or null for an untimed (all-day style) task' }),
+    durationMinutes: Duration.nullable().optional(),
+  })
+  .openapi('ScheduleBody');
+
 export const PlanBody = z
   .object({
     date: DateStr,
+    startTime: TimeStr.nullable().optional(),
+    durationMinutes: Duration.nullable().optional(),
     goal: z.string().max(300).optional().openapi({
       description: 'Omit to schedule the whole task; provide to create a scheduled child subtask with this goal',
     }),
@@ -186,6 +203,8 @@ export const ExportSchema = z
         hardDue: DateStr.nullable(),
         softDue: DateStr.nullable(),
         scheduledDate: DateStr.nullable(),
+        startTime: TimeStr.nullable().optional(),
+        durationMinutes: Duration.nullable().optional(),
         done: z.boolean(),
         tags: z.array(z.string()),
         blockedBy: z.array(z.string()),
@@ -194,3 +213,32 @@ export const ExportSchema = z
     ),
   })
   .openapi('Export');
+
+export const CalendarColor = z.enum(['sky', 'orange', 'green', 'pink', 'yellow', 'vermillion']);
+
+export const CalendarSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    source: z.string().openapi({ description: 'Host of the ICS link. The full URL is never returned (it often contains a secret).' }),
+    color: CalendarColor,
+    enabled: z.boolean(),
+    fetchedAt: z.string().nullable(),
+    error: z.string().nullable().openapi({ description: 'Last refresh error; previous data is kept while set' }),
+  })
+  .openapi('Calendar');
+
+export const CalendarEventSchema = z
+  .object({
+    id: z.string(),
+    calendarId: z.string(),
+    calendarName: z.string(),
+    color: CalendarColor,
+    uid: z.string(),
+    title: z.string(),
+    start: z.string().openapi({ description: 'All-day: YYYY-MM-DD. Timed: ISO-8601 instant (UTC).' }),
+    end: z.string().openapi({ description: 'All-day: exclusive YYYY-MM-DD (as in ICS). Timed: ISO-8601 instant (UTC).' }),
+    allDay: z.boolean(),
+    location: z.string().nullable(),
+  })
+  .openapi('CalendarEvent');

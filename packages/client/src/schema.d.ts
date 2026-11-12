@@ -497,8 +497,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * Schedule a task on a date
-         * @description Fails with 409 (and the blockers) if the task is still blocked.
+         * Schedule a task on a date (optionally as a timed block)
+         * @description Give `startTime` (and optionally `durationMinutes`, default 30) for a timed block; omit it for an untimed task. Fails with 409 (and the blockers) if the task is still blocked.
          */
         put: {
             parameters: {
@@ -511,13 +511,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Calendar date, YYYY-MM-DD (no timezone)
-                         * @example 2026-11-14
-                         */
-                        date: string;
-                    };
+                    "application/json": components["schemas"]["ScheduleBody"];
                 };
             };
             responses: {
@@ -1309,6 +1303,335 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List subscribed ICS calendars */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["Calendar"][];
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Subscribe to an ICS calendar
+         * @description Accepts http(s):// and webcal:// links. The link is downloaded and validated before it is saved, then refreshed periodically.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        url: string;
+                        /** @enum {string} */
+                        color?: "sky" | "orange" | "green" | "pink" | "yellow" | "vermillion";
+                    };
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Calendar"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not a valid ICS link */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Could not download the link */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendars/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Unsubscribe from a calendar */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Removed */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Rename, recolor, enable or disable a calendar */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        enabled?: boolean;
+                        /** @enum {string} */
+                        color?: "sky" | "orange" | "green" | "pink" | "yellow" | "vermillion";
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Calendar"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/calendars/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-download a calendar now */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Calendar"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Events from all enabled calendars, recurrences expanded
+         * @description Returns events overlapping the local dates from..to (inclusive, max 400 days). The window is padded by a day or two so clients can clip per day in their own timezone.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Calendar date, YYYY-MM-DD (no timezone) */
+                    from: string;
+                    /** @description Calendar date, YYYY-MM-DD (no timezone) */
+                    to: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["CalendarEvent"][];
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Bad range */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1370,6 +1693,13 @@ export interface components {
              * @example 2026-11-14
              */
             scheduledDate: string | null;
+            /**
+             * @description Wall-clock time, HH:MM (no timezone)
+             * @example 14:30
+             */
+            startTime: string | null;
+            /** @description Minutes; defaults to 30 when a start time is given */
+            durationMinutes: number | null;
             done: boolean;
             tags: string[];
             blockedBy: string[];
@@ -1439,6 +1769,20 @@ export interface components {
             /** @description After unscheduling: dependents still scheduled even though their blocker no longer is */
             scheduledDependents: components["schemas"]["Task"][];
         };
+        ScheduleBody: {
+            /**
+             * @description Calendar date, YYYY-MM-DD (no timezone)
+             * @example 2026-11-14
+             */
+            date: string;
+            /**
+             * @description Omit or null for an untimed (all-day style) task
+             * @example 14:30
+             */
+            startTime?: string | null;
+            /** @description Minutes; defaults to 30 when a start time is given */
+            durationMinutes?: number | null;
+        };
         PlanResult: {
             task: components["schemas"]["Task"];
             created: boolean;
@@ -1450,6 +1794,13 @@ export interface components {
              * @example 2026-11-14
              */
             date: string;
+            /**
+             * @description Wall-clock time, HH:MM (no timezone)
+             * @example 14:30
+             */
+            startTime?: string | null;
+            /** @description Minutes; defaults to 30 when a start time is given */
+            durationMinutes?: number | null;
             /** @description Omit to schedule the whole task; provide to create a scheduled child subtask with this goal */
             goal?: string;
         };
@@ -1532,11 +1883,45 @@ export interface components {
                  * @example 2026-11-14
                  */
                 scheduledDate: string | null;
+                /**
+                 * @description Wall-clock time, HH:MM (no timezone)
+                 * @example 14:30
+                 */
+                startTime?: string | null;
+                /** @description Minutes; defaults to 30 when a start time is given */
+                durationMinutes?: number | null;
                 done: boolean;
                 tags: string[];
                 blockedBy: string[];
                 createdAt?: string;
             }[];
+        };
+        Calendar: {
+            id: string;
+            name: string;
+            /** @description Host of the ICS link. The full URL is never returned (it often contains a secret). */
+            source: string;
+            /** @enum {string} */
+            color: "sky" | "orange" | "green" | "pink" | "yellow" | "vermillion";
+            enabled: boolean;
+            fetchedAt: string | null;
+            /** @description Last refresh error; previous data is kept while set */
+            error: string | null;
+        };
+        CalendarEvent: {
+            id: string;
+            calendarId: string;
+            calendarName: string;
+            /** @enum {string} */
+            color: "sky" | "orange" | "green" | "pink" | "yellow" | "vermillion";
+            uid: string;
+            title: string;
+            /** @description All-day: YYYY-MM-DD. Timed: ISO-8601 instant (UTC). */
+            start: string;
+            /** @description All-day: exclusive YYYY-MM-DD (as in ICS). Timed: ISO-8601 instant (UTC). */
+            end: string;
+            allDay: boolean;
+            location: string | null;
         };
     };
     responses: never;

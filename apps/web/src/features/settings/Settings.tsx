@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Copy, Download, ExternalLink, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Copy, Download, ExternalLink, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { unwrap } from '@todo/client';
+import { ApiError, unwrap, type Calendar } from '@todo/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { api, logout, qk } from '@/lib/api';
+import { Checkbox } from '@/components/ui/checkbox';
+import { api, logout, qk, useCalendarsQuery } from '@/lib/api';
+import { calendarColor } from '@/lib/events';
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -85,6 +87,112 @@ function Tokens() {
             </Button>
           </li>
         ))}
+      </ul>
+    </Section>
+  );
+}
+
+function Calendars() {
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const list = useCalendarsQuery();
+  const refreshAll = () => {
+    void qc.invalidateQueries({ queryKey: qk.calendars });
+    void qc.invalidateQueries({ queryKey: qk.calendarEvents });
+  };
+  const fail = (e: unknown) => toast.error(e instanceof ApiError ? `${e.problem.title ?? 'Error'}: ${e.message}` : 'Something went wrong');
+
+  const add = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/calendars', { body: { name: name.trim(), url: url.trim() } })),
+    onSuccess: () => {
+      setName('');
+      setUrl('');
+      toast.success('Calendar added');
+      refreshAll();
+    },
+    onError: fail,
+  });
+  const patch = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      unwrap(api.PATCH('/api/v1/calendars/{id}', { params: { path: { id } }, body: { enabled } })),
+    onSuccess: refreshAll,
+    onError: fail,
+  });
+  const refresh = useMutation({
+    mutationFn: (id: string) => unwrap(api.POST('/api/v1/calendars/{id}/refresh', { params: { path: { id } } })),
+    onSuccess: refreshAll,
+    onError: fail,
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE('/api/v1/calendars/{id}', { params: { path: { id } } })),
+    onSuccess: refreshAll,
+    onError: fail,
+  });
+
+  return (
+    <Section
+      title="Calendars"
+      hint="Subscribe to ICS links (Google, Apple, Outlook, Nextcloud…). Events show on every view, read-only, and refresh automatically."
+    >
+      <form
+        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim() && url.trim()) add.mutate();
+        }}
+      >
+        <div className="flex flex-col gap-1.5 sm:w-48">
+          <Label htmlFor="cal-name">Name</Label>
+          <Input id="cal-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Work" maxLength={80} className="h-11" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Label htmlFor="cal-url">ICS link</Label>
+          <Input id="cal-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… or webcal://…" className="h-11" inputMode="url" autoComplete="off" />
+        </div>
+        <Button type="submit" className="h-11" disabled={!name.trim() || !url.trim() || add.isPending}>
+          {add.isPending ? 'Checking…' : 'Add'}
+        </Button>
+      </form>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Treat the link like a password — many calendar apps put a secret token in it. It is stored on your server and never shown again.
+      </p>
+
+      <ul className="mt-3 divide-y">
+        {list.data?.map((c: Calendar) => (
+          <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <CalendarDays className="size-4 shrink-0" style={{ color: calendarColor(c.color) }} aria-hidden />
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{c.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {c.source} · {c.fetchedAt ? `updated ${new Date(c.fetchedAt).toLocaleString()}` : 'not fetched yet'}
+                </span>
+                {c.error && (
+                  <span role="alert" className="mt-0.5 flex items-start gap-1 text-xs text-destructive">
+                    <AlertTriangle className="mt-px size-3 shrink-0" aria-hidden /> {c.error} (showing the last good copy)
+                  </span>
+                )}
+              </span>
+            </span>
+            <span className="flex items-center gap-1">
+              <Checkbox
+                id={`cal-show-${c.id}`}
+                checked={c.enabled}
+                onCheckedChange={(v) => patch.mutate({ id: c.id, enabled: v === true })}
+                aria-label={`Show ${c.name}`}
+              />
+              <Label htmlFor={`cal-show-${c.id}`} className="mr-2 text-xs">Show</Label>
+              <Button variant="ghost" size="icon" aria-label={`Refresh ${c.name}`} disabled={refresh.isPending} onClick={() => refresh.mutate(c.id)}>
+                <RefreshCw className={refresh.isPending && refresh.variables === c.id ? 'size-4 animate-spin' : 'size-4'} />
+              </Button>
+              <Button variant="ghost" size="icon" aria-label={`Remove ${c.name}`} onClick={() => remove.mutate(c.id)}>
+                <Trash2 className="size-4" />
+              </Button>
+            </span>
+          </li>
+        ))}
+        {list.data?.length === 0 && <li className="py-2 text-sm text-muted-foreground">No calendars yet.</li>}
       </ul>
     </Section>
   );
@@ -175,6 +283,7 @@ function Backup() {
 export function Settings({ onSignOut }: { onSignOut: () => void }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
+      <Calendars />
       <Tokens />
       <Webhooks />
       <Backup />

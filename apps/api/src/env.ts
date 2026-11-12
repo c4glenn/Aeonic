@@ -6,6 +6,7 @@ export interface Config {
   timeZone: string;
   port: number;
   webDir: string | null;
+  icsRefreshMinutes: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -17,5 +18,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     timeZone: env.TZ ?? 'UTC',
     port: Number(env.PORT ?? 3000),
     webDir: env.WEB_DIR ?? null,
+    icsRefreshMinutes: Number(env.ICS_REFRESH_MINUTES ?? 30),
   };
 }

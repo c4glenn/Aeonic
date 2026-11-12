@@ -20,6 +20,8 @@ interface Form {
   hardDue: string;
   softDue: string;
   scheduledDate: string;
+  startTime: string;
+  duration: number;
   tags: string[];
   blockedBy: string[];
 }
@@ -29,10 +31,10 @@ function initial(state: NonNullable<TaskDialogState>): Form {
     const t = state.task;
     return {
       title: t.title, projectId: t.projectId, importance: t.importance,
-      hardDue: t.hardDue ?? '', softDue: t.softDue ?? '', scheduledDate: t.scheduledDate ?? '', tags: t.tags, blockedBy: t.blockedBy,
+      hardDue: t.hardDue ?? '', softDue: t.softDue ?? '', scheduledDate: t.scheduledDate ?? '', startTime: t.startTime ?? '', duration: t.durationMinutes ?? 30, tags: t.tags, blockedBy: t.blockedBy,
     };
   }
-  return { title: '', projectId: state.projectId, importance: 2, hardDue: '', softDue: '', scheduledDate: '', tags: [], blockedBy: [] };
+  return { title: '', projectId: state.projectId, importance: 2, hardDue: '', softDue: '', scheduledDate: '', startTime: '', duration: 30, tags: [], blockedBy: [] };
 }
 
 export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; board: Board; onClose: () => void }) {
@@ -44,7 +46,10 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
   const schedule = useScheduleTask();
   const unschedule = useUnscheduleTask();
 
-  useEffect(() => setF(state ? initial(state) : null), [state]);
+  // Reset only when a different task/project is opened — NOT on every data refresh, which would wipe in-progress edits.
+  const key = state ? (state.mode === 'edit' ? `e:${state.task.id}` : `c:${state.projectId}`) : '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setF(state ? initial(state) : null), [key]);
   if (!state || !f) return <Dialog open={false} />;
 
   const editing = state.mode === 'edit' ? state.task : null;
@@ -70,9 +75,17 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
       if (editing) {
         await update.mutateAsync({ id: editing.id, patch: { ...common, projectId: f.projectId } });
         if (f.blockedBy.join() !== editing.blockedBy.join()) await setDeps.mutateAsync({ id: editing.id, blockedBy: f.blockedBy });
-        if (f.scheduledDate !== (editing.scheduledDate ?? '')) {
-          if (f.scheduledDate) await schedule.mutateAsync({ id: editing.id, date: f.scheduledDate });
-          else await unschedule.mutateAsync(editing.id);
+        const slotChanged =
+          f.startTime !== (editing.startTime ?? '') || (f.startTime !== '' && f.duration !== (editing.durationMinutes ?? 30));
+        if (f.scheduledDate !== (editing.scheduledDate ?? '') || (f.scheduledDate && slotChanged)) {
+          if (f.scheduledDate) {
+            await schedule.mutateAsync({
+              id: editing.id,
+              date: f.scheduledDate,
+              startTime: f.startTime || null,
+              durationMinutes: f.startTime ? f.duration : null,
+            });
+          } else await unschedule.mutateAsync(editing.id);
         }
       } else {
         await create.mutateAsync({ ...common, projectId: f.projectId, blockedBy: f.blockedBy });
@@ -128,6 +141,28 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
                 onChange={(e) => set('scheduledDate', e.target.value)}
                 className="h-11"
               />
+              {f.scheduledDate && (
+                <div className="mt-1 grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="t-time">Start time</Label>
+                    <Input id="t-time" type="time" step={900} value={f.startTime} onChange={(e) => set('startTime', e.target.value)} className="h-11" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Length</Label>
+                    <Select value={String(f.duration)} disabled={!f.startTime} onValueChange={(v) => set('duration', Number(v))}>
+                      <SelectTrigger className="h-11 w-full" aria-label="Length"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[15, 30, 45, 60, 90, 120, 180, 240, 480].map((m) => (
+                          <SelectItem key={m} value={String(m)}>{m < 60 ? `${m} min` : `${m / 60} h`}</SelectItem>
+                        ))}
+                        {![15, 30, 45, 60, 90, 120, 180, 240, 480].includes(f.duration) && (
+                          <SelectItem value={String(f.duration)}>{f.duration} min</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
               {!editing.scheduledDate && !board.unblocked(editing) && (
                 <p className="text-xs text-muted-foreground">Locked until its blockers are scheduled or done.</p>
               )}

@@ -4,6 +4,9 @@ import {
   activeBlockers,
   addDays,
   computeUrgencies,
+  DEFAULT_DURATION,
+  DAY_MINUTES,
+  timeToMinutes,
   dependentsMap,
   indexTasks,
   isUnblocked,
@@ -52,6 +55,8 @@ const toTask = (r: TaskRow): Task => ({
   hardDue: r.hardDue,
   softDue: r.softDue,
   scheduledDate: r.scheduledDate,
+  startTime: r.startTime,
+  durationMinutes: r.durationMinutes,
   done: r.done,
   tags: r.tags,
   blockedBy: r.blockedBy,
@@ -66,6 +71,22 @@ const toProject = (r: ProjectRow): Project => ({
 });
 
 const normTags = (tags: string[]) => [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
+
+export interface SlotInput {
+  /** HH:MM wall-clock start. Omit/null = untimed (all-day style). */
+  startTime?: string | null;
+  durationMinutes?: number | null;
+}
+
+/** Normalise a slot: untimed → both null; timed → duration defaults to 30 and must fit in the day. */
+export function resolveSlot(slot?: SlotInput): { startTime: string | null; durationMinutes: number | null } {
+  if (!slot?.startTime) return { startTime: null, durationMinutes: null };
+  const dur = slot.durationMinutes ?? DEFAULT_DURATION;
+  if (timeToMinutes(slot.startTime) + dur > DAY_MINUTES) {
+    throw new HttpError(422, 'Invalid time block', 'A block must end by midnight');
+  }
+  return { startTime: slot.startTime, durationMinutes: dur };
+}
 
 export interface TaskQuery extends TaskFilter {
   status?: 'open' | 'done' | 'all';
@@ -275,6 +296,8 @@ export class Store {
     hardDue?: string | null;
     softDue?: string | null;
     scheduledDate?: string | null;
+    startTime?: string | null;
+    durationMinutes?: number | null;
     tags?: string[];
     blockedBy?: string[];
     parentId?: string | null;
@@ -294,6 +317,7 @@ export class Store {
       hardDue: input.hardDue ?? null,
       softDue: input.softDue ?? null,
       scheduledDate: input.scheduledDate ?? null,
+      ...(input.scheduledDate ? resolveSlot(input) : { startTime: null, durationMinutes: null }),
       done: false,
       tags: normTags(input.tags ?? []),
       blockedBy,
@@ -362,20 +386,21 @@ export class Store {
     return new HttpError(409, 'Task is blocked', 'Schedule or complete its blockers first', { blockers });
   }
 
-  schedule(id: string, date: string): { task: TaskView; scheduledDependents: TaskView[] } {
+  schedule(id: string, date: string, slot?: SlotInput): { task: TaskView; scheduledDependents: TaskView[] } {
     const all = this.rawTasks().map(toTask);
     const t = all.find((x) => x.id === id);
     if (!t) throw notFound('Task');
     if (!isUnblocked(t, indexTasks(all))) throw this.blockedError(t, all);
-    this.db.update(schema.tasks).set({ scheduledDate: date }).where(eq(schema.tasks.id, id)).run();
+    const resolved = resolveSlot(slot);
+    this.db.update(schema.tasks).set({ scheduledDate: date, ...resolved }).where(eq(schema.tasks.id, id)).run();
     this.bumpVersion(id);
-    this.bus.emit('task.scheduled', { id, date });
+    this.bus.emit('task.scheduled', { id, date, ...resolved });
     return { task: this.getTaskView(id), scheduledDependents: [] };
   }
 
   unschedule(id: string): { task: TaskView; scheduledDependents: TaskView[] } {
     this.getTaskView(id);
-    this.db.update(schema.tasks).set({ scheduledDate: null }).where(eq(schema.tasks.id, id)).run();
+    this.db.update(schema.tasks).set({ scheduledDate: null, startTime: null, durationMinutes: null }).where(eq(schema.tasks.id, id)).run();
     this.bumpVersion(id);
     this.bus.emit('task.unscheduled', { id });
     const orphans = new Set(scheduledDependents(id, this.rawTasks().map(toTask)).map((t) => t.id));
@@ -383,11 +408,11 @@ export class Store {
   }
 
   /** Drop flow: schedule whole task, or create a scheduled child with the stated goal. */
-  plan(id: string, date: string, goal?: string): { task: TaskView; created: boolean; scheduledDependents: TaskView[] } {
+  plan(id: string, date: string, goal?: string, slot?: SlotInput): { task: TaskView; created: boolean; scheduledDependents: TaskView[] } {
     const parent = this.getTaskView(id);
     const trimmed = goal?.trim();
     if (!trimmed) {
-      const r = this.schedule(id, date);
+      const r = this.schedule(id, date, slot);
       return { ...r, created: false };
     }
     const task = this.createTask({
@@ -397,6 +422,7 @@ export class Store {
       importance: parent.importance,
       tags: parent.tags,
       scheduledDate: date,
+      ...slot,
     });
     return { task, created: true, scheduledDependents: [] };
   }
@@ -430,19 +456,20 @@ export class Store {
     };
   }
 
-  import(data: { projects: (Project & { createdAt?: string })[]; tasks: (Task & { createdAt?: string })[] }) {
-    const ids = new Set(data.tasks.map((t) => t.id));
-    for (const t of data.tasks) {
+  import(data: { projects: (Project & { createdAt?: string })[]; tasks: (Omit<Task, 'startTime' | 'durationMinutes'> & Partial<Pick<Task, 'startTime' | 'durationMinutes'>> & { createdAt?: string })[] }) {
+    const tasks = data.tasks.map((t) => ({ ...t, startTime: t.startTime ?? null, durationMinutes: t.durationMinutes ?? null }));
+    const ids = new Set(tasks.map((t) => t.id));
+    for (const t of tasks) {
       const missing = t.blockedBy.filter((b) => !ids.has(b));
       if (missing.length) throw new HttpError(422, 'Invalid import', `Task ${t.id} blocked by unknown ${missing.join(',')}`);
     }
-    for (const t of data.tasks) {
-      if (wouldCreateCycle(data.tasks, t.id, t.blockedBy)) {
+    for (const t of tasks) {
+      if (wouldCreateCycle(tasks, t.id, t.blockedBy)) {
         throw new HttpError(422, 'Invalid import', `Dependency cycle involving ${t.id}`);
       }
     }
     const pids = new Set(data.projects.map((p) => p.id));
-    if (data.tasks.some((t) => !pids.has(t.projectId))) throw new HttpError(422, 'Invalid import', 'Task references unknown project');
+    if (tasks.some((t) => !pids.has(t.projectId))) throw new HttpError(422, 'Invalid import', 'Task references unknown project');
     const now = this.now();
     this.db.transaction((tx) => {
       tx.delete(schema.tasks).run();
@@ -450,12 +477,12 @@ export class Store {
       for (const p of data.projects) {
         tx.insert(schema.projects).values({ ...p, tags: normTags(p.tags), createdAt: p.createdAt ?? now }).run();
       }
-      for (const t of data.tasks) {
+      for (const t of tasks) {
         tx.insert(schema.tasks).values({ ...t, tags: normTags(t.tags), createdAt: t.createdAt ?? now }).run();
       }
     });
-    this.bus.emit('import.completed', { projects: data.projects.length, tasks: data.tasks.length });
-    return { projects: data.projects.length, tasks: data.tasks.length };
+    this.bus.emit('import.completed', { projects: data.projects.length, tasks: tasks.length });
+    return { projects: data.projects.length, tasks: tasks.length };
   }
 
   // ---------- seed ----------

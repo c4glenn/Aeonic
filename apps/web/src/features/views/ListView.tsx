@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
-import { CalendarPlus, Lock, X } from 'lucide-react';
+import { CalendarDays, CalendarPlus, Lock, X } from 'lucide-react';
+import { addDays, timeToMinutes } from '@todo/domain';
 import type { Task } from '@todo/client';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -9,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DueMark, ImportanceMark, LockMark, TagChip, UrgencyMark } from '@/components/marks';
 import type { Board } from '@/lib/board';
-import { fmtShort, toISODate } from '@/lib/dates';
+import { fmtLong, fmtShort, toISODate } from '@/lib/dates';
+import { useCalendarEvents } from '@/lib/api';
+import { calendarColor, fmtClock, segmentsFor } from '@/lib/events';
 import { cn } from '@/lib/utils';
 
 interface Handlers {
@@ -25,7 +28,10 @@ function ScheduleCell({ task, locked, onPick, onUnschedule }: { task: Task; lock
     <div className="flex items-center gap-1">
       {task.scheduledDate ? (
         <>
-          <span className="text-sm tabular-nums">{fmtShort(task.scheduledDate)}</span>
+          <span className="text-sm tabular-nums">
+            {fmtShort(task.scheduledDate)}
+            {task.startTime && <span className="text-muted-foreground"> · {fmtClock(timeToMinutes(task.startTime))}</span>}
+          </span>
           <Button variant="ghost" size="icon" className="size-8" aria-label={`Unschedule ${task.title}`} onClick={() => onUnschedule(task)}>
             <X className="size-4" />
           </Button>
@@ -61,6 +67,11 @@ function ScheduleCell({ task, locked, onPick, onUnschedule }: { task: Task; lock
 export function ListView({ board, sort, ...h }: { board: Board; sort: 'urgency' | 'importance' } & Handlers) {
   const [group, setGroup] = useState<'flat' | 'project'>('flat');
   const rows = board.visible;
+  const horizon = addDays(board.today, 13);
+  const events = useCalendarEvents(board.today, horizon);
+  const upcoming = Array.from({ length: 14 }, (_, i) => addDays(board.today, i))
+    .map((date) => ({ date, segs: segmentsFor(events, date) }))
+    .filter((d) => d.segs.length);
 
   const renderRow = (t: Task) => {
     const locked = !board.unblocked(t) && !t.done;
@@ -157,6 +168,39 @@ export function ListView({ board, sort, ...h }: { board: Board; sort: 'urgency' 
           </TableBody>
         </Table>
       </div>
+
+      {upcoming.length > 0 && (
+        <section className="rounded-xl border bg-card p-3" aria-label="Upcoming calendar events">
+          <h2 className="mb-2 flex items-center gap-1.5 font-display text-lg font-semibold">
+            <CalendarDays className="size-4" aria-hidden /> Calendar events <span className="font-sans text-xs font-normal text-muted-foreground">next 14 days</span>
+          </h2>
+          <div className="flex flex-col gap-3">
+            {upcoming.map(({ date, segs }) => (
+              <div key={date}>
+                <h3 className="mb-1 font-sans text-xs font-medium text-muted-foreground">{date === board.today ? 'Today · ' : ''}{fmtLong(date)}</h3>
+                <ul className="flex flex-col gap-1">
+                  {segs.map((sg) => (
+                    <li
+                      key={`${sg.event.id}-${date}`}
+                      className="event-surface flex flex-wrap items-baseline gap-x-3 rounded-sm px-2 py-1 text-sm"
+                      style={{ ['--cal' as string]: calendarColor(sg.event.color) }}
+                    >
+                      <span className="w-28 shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {sg.allDay ? 'All day' : `${fmtClock(sg.startMin)} – ${fmtClock(sg.endMin)}`}
+                      </span>
+                      <span className="min-w-0 flex-1 break-words">{sg.event.title}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {sg.event.calendarName}
+                        {sg.event.location ? ` · ${sg.event.location}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

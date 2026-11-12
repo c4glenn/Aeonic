@@ -6,7 +6,7 @@ import {
 
 const mk = (id: string, over: Partial<Task> = {}): Task => ({
   id, projectId: 'p1', parentId: null, title: id, importance: 2,
-  hardDue: null, softDue: null, scheduledDate: null, done: false, tags: [], blockedBy: [], ...over,
+  hardDue: null, softDue: null, scheduledDate: null, startTime: null, durationMinutes: null, done: false, tags: [], blockedBy: [], ...over,
 });
 const TODAY = '2026-11-11';
 
@@ -125,5 +125,38 @@ describe('month helpers', () => {
     expect(monthGrid('2026-06-10')[0]![0]).toBe('2026-06-01');
     expect(monthGrid('2027-02-10')).toHaveLength(4); // Feb 2027 starts Monday, 28 days
     expect(monthGrid('2026-02-10')).toHaveLength(5); // Feb 2026 starts Sunday
+  });
+});
+
+import { clampBlock, layoutOverlaps, minutesToTime, snapMinutes, timeToMinutes } from './index';
+
+describe('time helpers', () => {
+  it('converts and snaps', () => {
+    expect(timeToMinutes('09:30')).toBe(570);
+    expect(minutesToTime(570)).toBe('09:30');
+    expect(minutesToTime(5000)).toBe('23:59');
+    expect(snapMinutes(37)).toBe(30);
+    expect(snapMinutes(38)).toBe(45);
+  });
+  it('clamps blocks into the day with a minimum length', () => {
+    expect(clampBlock(1430, 60)).toEqual({ start: 1380, duration: 60 });
+    expect(clampBlock(-20, 30)).toEqual({ start: 0, duration: 30 });
+    expect(clampBlock(600, 3)).toEqual({ start: 600, duration: 15 });
+  });
+});
+
+describe('layoutOverlaps', () => {
+  it('puts overlapping items in separate lanes and reuses freed lanes', () => {
+    const p = layoutOverlaps([
+      { id: 'a', start: 60, end: 120 },
+      { id: 'b', start: 90, end: 150 },
+      { id: 'c', start: 120, end: 180 }, // starts when a ends → reuses lane 0, still overlaps b
+      { id: 'd', start: 300, end: 330 }, // separate cluster
+    ]);
+    const by = Object.fromEntries(p.map((x) => [x.id, x]));
+    expect(by.a).toMatchObject({ lane: 0, lanes: 2 });
+    expect(by.b).toMatchObject({ lane: 1, lanes: 2 });
+    expect(by.c).toMatchObject({ lane: 0, lanes: 2 });
+    expect(by.d).toMatchObject({ lane: 0, lanes: 1 });
   });
 });

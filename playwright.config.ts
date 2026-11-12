@@ -10,12 +10,14 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  use: { baseURL: 'http://localhost:3101', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://localhost:3101', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /mobile\.spec\.ts/ },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1100 } }, testIgnore: /mobile\.spec\.ts/ },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /mobile\.spec\.ts/ },
   ],
-  webServer: {
+  webServer: [
+    { command: 'node e2e/ics-server.mjs', url: 'http://localhost:3102/cal.ics', reuseExistingServer: false },
+    {
     command: 'pnpm --filter @todo/api start',
     url: 'http://localhost:3101/healthz',
     reuseExistingServer: false,
@@ -26,5 +28,6 @@ export default defineConfig({
       ADMIN_PASSWORD_HASH: hashPassword('e2e-pass'),
       TZ: 'UTC',
     },
-  },
+    },
+  ],
 });

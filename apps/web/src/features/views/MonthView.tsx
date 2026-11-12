@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight, Flag, Hourglass } from 'lucide-react';
 import { addMonths, isWeekend, monthGrid, startOfMonth } from '@todo/domain';
-import type { Task } from '@todo/client';
+import type { CalendarEvent, Task } from '@todo/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DueMark } from '@/components/marks';
+import { EventTag } from '@/components/event-marks';
+import { segmentsFor } from '@/lib/events';
+import { useCalendarEvents } from '@/lib/api';
 import { TaskChip } from '@/features/week/TaskChip';
 import type { Board } from '@/lib/board';
 import { fmtLong, fmtMonth, weekdayShort } from '@/lib/dates';
@@ -22,16 +25,18 @@ interface Handlers {
 const MAX_ITEMS = 3;
 
 function DayCell({
-  date, inMonth, board, onMore, onOpen,
-}: { date: string; inMonth: boolean; board: Board; onMore: (d: string) => void; onOpen: (t: Task) => void }) {
+  date, inMonth, board, events, onMore, onOpen,
+}: { date: string; inMonth: boolean; board: Board; events: CalendarEvent[]; onMore: (d: string) => void; onOpen: (t: Task) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: date });
   const scheduled = board.scheduledOn(date);
   const due = board.dueOn(date);
-  const total = scheduled.length + due.length;
+  const segs = segmentsFor(events, date);
+  const total = scheduled.length + due.length + segs.length;
   const isToday = date === board.today;
   const weekend = isWeekend(date);
   const shown = [
     ...due.map((d) => ({ type: 'due' as const, task: d.task, dueKind: d.kind })),
+    ...segs.map((seg) => ({ type: 'event' as const, seg })),
     ...scheduled.map((task) => ({ type: 'task' as const, task })),
   ];
 
@@ -63,7 +68,9 @@ function DayCell({
       {/* ≥sm: show items inline; below sm the count badge + tap-to-open day sheet is used */}
       <div className="hidden flex-col gap-0.5 sm:flex">
         {shown.slice(0, MAX_ITEMS).map((it) =>
-          it.type === 'due' ? (
+          it.type === 'event' ? (
+            <EventTag key={`${it.seg.event.id}-${date}`} event={it.seg.event} startMin={it.seg.allDay ? undefined : it.seg.startMin} />
+          ) : it.type === 'due' ? (
             <button
               key={`${it.task.id}-${it.dueKind}`}
               type="button"
@@ -95,10 +102,12 @@ export function MonthView({ board, ...h }: { board: Board } & Handlers) {
   const [anchor, setAnchor] = useState(startOfMonth(board.today));
   const [openDay, setOpenDay] = useState<string | null>(null);
   const weeks = monthGrid(anchor);
+  const events = useCalendarEvents(weeks[0]![0]!, weeks.at(-1)!.at(-1)!);
 
   const tray = board.visible.filter((t) => !t.done && !t.scheduledDate && board.unblocked(t));
   const dayScheduled = openDay ? board.scheduledOn(openDay) : [];
   const dayDue = openDay ? board.dueOn(openDay) : [];
+  const dayEvents = openDay ? segmentsFor(events, openDay) : [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -128,7 +137,7 @@ export function MonthView({ board, ...h }: { board: Board } & Handlers) {
           </div>
         ))}
         {weeks.flat().map((d) => (
-          <DayCell key={d} date={d} inMonth={d.slice(0, 7) === anchor.slice(0, 7)} board={board} onMore={setOpenDay} onOpen={h.onOpen} />
+          <DayCell key={d} date={d} inMonth={d.slice(0, 7) === anchor.slice(0, 7)} board={board} events={events} onMore={setOpenDay} onOpen={h.onOpen} />
         ))}
       </div>
 
@@ -158,10 +167,15 @@ export function MonthView({ board, ...h }: { board: Board } & Handlers) {
           <DialogHeader>
             <DialogTitle>{openDay && fmtLong(openDay)}</DialogTitle>
             <DialogDescription>
-              {dayScheduled.length} scheduled · {dayDue.length} due marker{dayDue.length === 1 ? '' : 's'}
+              {dayScheduled.length} scheduled · {dayDue.length} due marker{dayDue.length === 1 ? '' : 's'} · {dayEvents.length} calendar event{dayEvents.length === 1 ? '' : 's'}
             </DialogDescription>
           </DialogHeader>
           <ul className="flex flex-col gap-1.5">
+            {dayEvents.map((sg) => (
+              <li key={sg.event.id}>
+                <EventTag event={sg.event} startMin={sg.allDay ? undefined : sg.startMin} className="py-1.5 text-xs" />
+              </li>
+            ))}
             {openDay &&
               dayDue.map(({ task, kind }) => (
                 <li key={`${task.id}-${kind}`} className={cn('rounded-md bg-background/60 px-2 py-1.5 text-sm', kind === 'hard' ? 'due-hard' : 'due-soft')}>
@@ -185,7 +199,7 @@ export function MonthView({ board, ...h }: { board: Board } & Handlers) {
                 />
               </li>
             ))}
-            {!dayScheduled.length && !dayDue.length && <li className="text-sm text-muted-foreground">Nothing on this day.</li>}
+            {!dayScheduled.length && !dayDue.length && !dayEvents.length && <li className="text-sm text-muted-foreground">Nothing on this day.</li>}
           </ul>
         </DialogContent>
       </Dialog>

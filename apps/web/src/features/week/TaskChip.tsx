@@ -30,10 +30,10 @@ export function TaskChip({ task, urgency, days, today, projectName, scheduled, o
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, data: { task } });
 
   return (
+    <div ref={setNodeRef} className="@container">
     <div
-      ref={setNodeRef}
       className={cn(
-        'group flex items-start gap-1.5 rounded-md border bg-secondary/60 px-1.5 py-1.5 text-sm transition-colors hover:bg-secondary',
+        'group flex flex-wrap items-start gap-1.5 rounded-md border bg-secondary/60 px-1.5 py-1.5 text-sm transition-colors hover:bg-secondary',
         task.hardDue && 'border-l-[3px] border-l-hard',
         !task.hardDue && task.softDue && 'border-l-[3px] border-dashed border-l-soft',
         isDragging && 'opacity-40',
@@ -55,7 +55,8 @@ export function TaskChip({ task, urgency, days, today, projectName, scheduled, o
         aria-label={`Mark ${task.title} done`}
         className="mt-1"
       />
-      <button type="button" onClick={() => onOpen(task)} className="min-w-0 flex-1 text-left">
+      {/* in a narrow container the title drops to its own full-width row under the controls */}
+      <button type="button" onClick={() => onOpen(task)} className="min-w-0 flex-1 text-left @max-[14rem]:order-last @max-[14rem]:basis-full">
         <span className={cn('block break-words leading-snug', task.done && 'line-through')}>{task.title}</span>
         <span className="mt-1 flex flex-wrap items-center gap-1">
           {projectName && <span className="text-[11px] text-muted-foreground">{projectName}</span>}
@@ -68,14 +69,14 @@ export function TaskChip({ task, urgency, days, today, projectName, scheduled, o
       </button>
       {scheduled ? (
         onUnschedule && (
-          <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={`Unschedule ${task.title}`} onClick={() => onUnschedule(task)}>
+          <Button variant="ghost" size="icon" className="size-8 shrink-0 @max-[14rem]:ml-auto" aria-label={`Unschedule ${task.title}`} onClick={() => onUnschedule(task)}>
             <X className="size-4" />
           </Button>
         )
       ) : (
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={`Schedule ${task.title}`}>
+            <Button variant="ghost" size="icon" className="size-8 shrink-0 @max-[14rem]:ml-auto" aria-label={`Schedule ${task.title}`}>
               <CalendarPlus className="size-4" />
             </Button>
           </PopoverTrigger>
@@ -87,6 +88,7 @@ export function TaskChip({ task, urgency, days, today, projectName, scheduled, o
           </PopoverContent>
         </Popover>
       )}
+    </div>
     </div>
   );
 }

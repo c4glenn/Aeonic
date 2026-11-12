@@ -126,6 +126,16 @@
   );
 }
 
+/* Calendar events (read-only, from ICS): dotted fill + colored stripe + calendar icon + name.
+   Tasks are solid fills, weekends are diagonal hatch, due markers are solid/dashed lines — so none of these collide. */
+.event-surface {
+  background-color: var(--card);
+  background-image: radial-gradient(color-mix(in srgb, var(--cal, var(--oi-sky)) 45%, transparent) 1px, transparent 1.2px);
+  background-size: 6px 6px;
+  border: 1px solid color-mix(in srgb, var(--cal, var(--oi-sky)) 55%, var(--border));
+  border-left: 4px solid var(--cal, var(--oi-sky));
+}
+
 /* Hard due: solid, heavy. Soft due: dashed, light. */
 .due-hard {
   border-left: 4px solid var(--hard);

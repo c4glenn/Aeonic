@@ -35,6 +35,15 @@ const MIGRATIONS: string[] = [
     body TEXT NOT NULL, created_at INTEGER NOT NULL
   );
   `,
+  // 2: timed blocks on tasks + ICS calendar subscriptions
+  `
+  ALTER TABLE tasks ADD COLUMN start_time TEXT;
+  ALTER TABLE tasks ADD COLUMN duration_minutes INTEGER;
+  CREATE TABLE calendars (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, color TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1, raw TEXT, fetched_at TEXT, error TEXT, created_at TEXT NOT NULL
+  );
+  `,
 ];
 
 export function migrate(sqlite: Database.Database): void {

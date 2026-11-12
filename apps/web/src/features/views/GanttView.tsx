@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Flag, Hourglass } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Flag, Hourglass } from 'lucide-react';
 import { addDays, daysBetween, isWeekend } from '@todo/domain';
-import type { Task } from '@todo/client';
+import type { CalendarEvent, Task } from '@todo/client';
+import { useCalendarEvents } from '@/lib/api';
+import { calendarColor, eventDates } from '@/lib/events';
+import { eventTitle } from '@/components/event-marks';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Board } from '@/lib/board';
@@ -13,7 +16,27 @@ type Zoom = keyof typeof ZOOMS;
 const ROW = 40;
 const HEAD = 56;
 
-type Row = { kind: 'project'; id: string; name: string } | { kind: 'task'; task: Task };
+interface LaneItem {
+  event: CalendarEvent;
+  from: number;
+  to: number;
+}
+type Row =
+  | { kind: 'project'; id: string; name: string }
+  | { kind: 'task'; task: Task }
+  | { kind: 'cal'; id: string; name: string; color: string }
+  | { kind: 'lane'; items: LaneItem[] };
+
+/** Greedy interval packing so overlapping events of one calendar get their own sub-rows. */
+function packLanes(items: LaneItem[]): LaneItem[][] {
+  const lanes: LaneItem[][] = [];
+  for (const it of [...items].sort((a, b) => a.from - b.from || b.to - a.to)) {
+    const lane = lanes.find((l) => l[l.length - 1]!.to < it.from);
+    if (lane) lane.push(it);
+    else lanes.push([it]);
+  }
+  return lanes;
+}
 
 const hasDates = (t: Task) => !!(t.scheduledDate || t.hardDue || t.softDue);
 
@@ -29,6 +52,7 @@ export function GanttView({ board, onOpen }: { board: Board; onOpen: (t: Task) =
   const start = addDays(board.today, -2 + offset);
   const days = useMemo(() => Array.from({ length: zoom }, (_, i) => addDays(start, i)), [start, zoom]);
   const width = zoom * colW;
+  const events = useCalendarEvents(days[0]!, days[zoom - 1]!);
 
   const { rows, hidden } = useMemo(() => {
     const out: Row[] = [];
@@ -41,8 +65,24 @@ export function GanttView({ board, onOpen }: { board: Board; onOpen: (t: Task) =
       out.push({ kind: 'project', id: p.id, name: p.name });
       for (const task of dated) out.push({ kind: 'task', task });
     }
+
+    // one group per calendar that has something in range
+    const byCal = new Map<string, { name: string; color: string; items: LaneItem[] }>();
+    for (const event of events) {
+      const { first, last } = eventDates(event);
+      const from = Math.max(0, daysBetween(start, first));
+      const to = Math.min(zoom - 1, daysBetween(start, last));
+      if (to < 0 || from > zoom - 1 || to < from) continue;
+      const g = byCal.get(event.calendarId) ?? { name: event.calendarName, color: event.color, items: [] };
+      g.items.push({ event, from, to });
+      byCal.set(event.calendarId, g);
+    }
+    for (const [id, g] of byCal) {
+      out.push({ kind: 'cal', id, name: g.name, color: g.color });
+      for (const items of packLanes(g.items)) out.push({ kind: 'lane', items });
+    }
     return { rows: out, hidden: hiddenCount };
-  }, [board.projects, board.visible]);
+  }, [board.projects, board.visible, events, start, zoom]);
 
   const x = (date: string) => daysBetween(start, date) * colW;
   const inRange = (date: string) => {
@@ -112,11 +152,18 @@ export function GanttView({ board, onOpen }: { board: Board; onOpen: (t: Task) =
             {/* sticky label column */}
             <div className="sticky left-0 z-20 w-36 shrink-0 border-r bg-card sm:w-56">
               <div style={{ height: HEAD }} className="flex items-end border-b px-2 pb-1 text-xs text-muted-foreground">Task</div>
-              {rows.map((r) =>
+              {rows.map((r, i) =>
                 r.kind === 'project' ? (
                   <div key={`p-${r.id}`} style={{ height: ROW }} className="flex items-center border-b bg-muted px-2 font-display text-sm font-semibold">
                     <span className="truncate">{r.name}</span>
                   </div>
+                ) : r.kind === 'cal' ? (
+                  <div key={`c-${r.id}`} style={{ height: ROW }} className="flex items-center gap-1.5 border-b bg-muted px-2 font-display text-sm font-semibold">
+                    <CalendarDays className="size-4 shrink-0" style={{ color: calendarColor(r.color) }} aria-hidden />
+                    <span className="truncate">{r.name}</span>
+                  </div>
+                ) : r.kind === 'lane' ? (
+                  <div key={`l-${i}`} style={{ height: ROW }} className="border-b" aria-hidden />
                 ) : (
                   <button
                     key={r.task.id}
@@ -161,7 +208,7 @@ export function GanttView({ board, onOpen }: { board: Board; onOpen: (t: Task) =
 
               {/* row separators */}
               {rows.map((r, i) => (
-                <div key={`s-${i}`} className={cn('absolute inset-x-0 border-b', r.kind === 'project' && 'bg-muted/60')} style={{ top: rowTop(i), height: ROW }} />
+                <div key={`s-${i}`} className={cn('absolute inset-x-0 border-b', (r.kind === 'project' || r.kind === 'cal') && 'bg-muted/60')} style={{ top: rowTop(i), height: ROW }} />
               ))}
 
               {inRange(board.today) && (
@@ -192,6 +239,29 @@ export function GanttView({ board, onOpen }: { board: Board; onOpen: (t: Task) =
               </svg>
 
               {rows.map((r, i) => {
+                if (r.kind === 'lane') {
+                  return (
+                    <div key={`ln-${i}`}>
+                      {r.items.map(({ event, from, to }) => (
+                        <div
+                          key={event.id}
+                          data-event={event.id}
+                          className="event-surface absolute z-[5] flex items-center gap-1 overflow-hidden rounded-sm px-1 text-[11px]"
+                          style={{
+                            ['--cal' as string]: calendarColor(event.color),
+                            left: from * colW + 2,
+                            width: (to - from + 1) * colW - 4,
+                            top: rowTop(i) + 8,
+                            height: ROW - 16,
+                          }}
+                          title={eventTitle(event)}
+                        >
+                          <span className="truncate">{event.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
                 if (r.kind !== 'task') return null;
                 const t = r.task;
                 const top = rowTop(i);
@@ -271,6 +341,7 @@ function Legend() {
       <li className="flex items-center gap-1.5"><Hourglass className="size-3.5 text-soft" /> Soft target (dashed)</li>
       <li className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t border-muted-foreground" /> Blocks →</li>
       <li className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-dashed border-oi-vermillion" /> Order conflict</li>
+      <li className="flex items-center gap-1.5"><span className="event-surface inline-block h-3 w-4 rounded-sm" /> Calendar event</li>
     </ul>
   );
 }

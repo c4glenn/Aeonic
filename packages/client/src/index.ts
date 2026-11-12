@@ -7,6 +7,8 @@ export type Project = components['schemas']['Project'];
 export type Week = components['schemas']['Week'];
 export type Token = components['schemas']['Token'];
 export type Webhook = components['schemas']['Webhook'];
+export type Calendar = components['schemas']['Calendar'];
+export type CalendarEvent = components['schemas']['CalendarEvent'];
 
 export interface ClientOptions {
   /** Defaults to same origin. */

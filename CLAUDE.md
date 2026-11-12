@@ -11,6 +11,8 @@ Core domain rules (live only in `packages/domain`):
 - **Urgency** = days until the soonest due date (hard or soft) among the task and all its transitive dependents. Hard wins ties; overdue sorts first.
 - Dependencies must stay acyclic.
 - Dates are plain `YYYY-MM-DD` strings. Never use `Date` for storage.
+- **Timed blocks:** a scheduled task may also have `startTime` (`HH:MM` wall clock, no timezone) and `durationMinutes` (5–1440, default 30, must end by midnight). Omitting the time on a schedule call makes the task untimed; unscheduling clears both.
+- **ICS calendars** are read-only subscriptions. Events are UTC instants (timed) or `YYYY-MM-DD` with an *exclusive* end (all-day); the browser clips them to its own local days.
 
 ## 2. Setup
 Requires Node 20 and pnpm 10.
@@ -41,6 +43,14 @@ packages/client   Typed client generated from the OpenAPI spec
 - Live events are at `GET /api/v1/events` (SSE).
 - Every endpoint is zod-typed so `/api/openapi.json` stays complete. Changes within `/api/v1` are additive.
 
+## 3b. Calendars and the hour grid
+- `apps/api/src/ics.ts` (fetch, parse via node-ical, expand recurrences/EXDATE/moved occurrences) and `calendars.ts` (cache + periodic refresh, `ICS_REFRESH_MINUTES`, default 30). The raw ICS is stored in SQLite; parsed events are cached in memory.
+- **Never return a calendar's full URL** (it usually embeds a secret token) — only the host.
+- The API fetches user-supplied http(s) URLs (webcal:// is rewritten to https://). This is an SSRF surface; it is acceptable only because the API is single-user and authenticated. Don't expose it to untrusted users without an allowlist.
+- Week view = day cards (untimed tasks, due markers, all-day events; drop target `id=<date>`) + hour grid (`HOUR_PX=48`, droppable `id=time:<date>`, 15-min snap). Resize uses plain pointer events on the block's bottom handle (not dnd-kit) and arrow keys.
+- **Drop time must come from the live pointer position** (tracked in `App.tsx`), never dnd-kit's `delta`, which includes auto-scroll compensation. The grid only auto-scrolls while the pointer is inside it (`data-autoscroll="pointer"`).
+- Overlap layout and snapping live in `packages/domain/src/time.ts` (`layoutOverlaps`, `clampBlock`).
+
 ## 4. API conventions
 - JSON, RFC 9457 problem-details errors, cursor pagination.
 - `Idempotency-Key` honored on POST; ETag / `If-Match` on PATCH.
@@ -60,6 +70,7 @@ packages/client   Typed client generated from the OpenAPI spec
   - Hard due: solid thick border + flag icon + "Due"
   - Soft due: dashed border + hourglass icon + "Target" (lighter weight)
   - Weekend: tint + diagonal hatch + different header style
+  - Calendar event: dotted fill (`.event-surface`) + colored stripe + calendar icon + calendar name; always read-only. Tasks are solid fills.
   - Importance: icon/bar count + label
   - Locked: lock icon
 - WCAG AA contrast (4.5:1 text, 3:1 UI). Check with axe and a CVD simulator (deuteranopia, protanopia, tritanopia).
@@ -71,6 +82,12 @@ packages/client   Typed client generated from the OpenAPI spec
 - Drag activates on 200ms long-press so scrolling works. Every chip also has a "Schedule…" tap action with a day picker. Drag is never the only path.
 - Everything is keyboard operable, with visible focus rings.
 - Week strip is sticky and scroll-snaps horizontally on mobile.
+
+## 7b. Testing gotchas
+- `pnpm e2e` runs a tiny ICS feed (`e2e/ics-server.mjs`, port 3102) and the API on 3101 with a throwaway DB. Specs share one DB and run in file order, so create your own data through the API and filter to it with `/?projects=<id>` before dragging.
+- dnd-kit needs real pointer movement: drag in steps, and aim at the middle of the hour grid (edges auto-scroll).
+- Radix dialogs set `aria-hidden` on the page behind them, so `getByRole` can't see it — query the DOM instead.
+- `packages/client` generation needs TypeScript 5.x (it is pinned there); the web app uses TS 7.
 
 ## 8. Conventions
 - TypeScript strict, no `any`, small focused files.

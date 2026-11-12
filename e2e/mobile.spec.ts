@@ -7,7 +7,7 @@ test('mobile: no horizontal page scroll and tap-to-schedule works', async ({ pag
   const headers = { 'x-requested-with': 'todo-web' };
   const project = await (await page.request.post('/api/v1/projects', { headers, data: { name: 'Mobile project' } })).json();
   await page.request.post('/api/v1/tasks', { headers, data: { projectId: project.id, title: 'Tap me' } });
-  await page.reload();
+  await page.goto(`/?projects=${project.id}`); // just this project's card, as a user would filter
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);

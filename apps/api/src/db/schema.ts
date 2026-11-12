@@ -22,6 +22,8 @@ export const tasks = sqliteTable('tasks', {
   hardDue: text('hard_due'),
   softDue: text('soft_due'),
   scheduledDate: text('scheduled_date'),
+  startTime: text('start_time'),
+  durationMinutes: integer('duration_minutes'),
   done: integer('done', { mode: 'boolean' }).notNull().default(false),
   tags: json<string[]>('tags'),
   blockedBy: json<string[]>('blocked_by'),
@@ -67,4 +69,16 @@ export const idempotency = sqliteTable('idempotency', {
   status: integer('status').notNull(),
   body: text('body').notNull(),
   createdAt: integer('created_at').notNull(),
+});
+
+export const calendars = sqliteTable('calendars', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  color: text('color').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  raw: text('raw'),
+  fetchedAt: text('fetched_at'),
+  error: text('error'),
+  createdAt: text('created_at').notNull(),
 });

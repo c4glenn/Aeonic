@@ -1,5 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
+import { timeToMinutes } from '@todo/domain';
 import type { Task } from '@todo/client';
+import { fmtClock } from '@/lib/events';
 import { cn } from '@/lib/utils';
 
 /** Compact draggable task label for dense grids (month view). */
@@ -20,6 +22,7 @@ export function MiniChip({ task, project, onOpen }: { task: Task; project?: stri
       {...listeners}
       {...attributes}
     >
+      {task.startTime && <span className="mr-1 tabular-nums opacity-70">{fmtClock(timeToMinutes(task.startTime))}</span>}
       {task.title}
     </button>
   );
