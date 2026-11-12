@@ -29,6 +29,15 @@ createServer((req, res) => {
   if (req.url === '/cal.ics') {
     res.writeHead(200, { 'content-type': 'text/calendar' });
     res.end(feed());
+  } else if (req.url === '/current.ics') {
+    const now = Date.now();
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//e2e//EN',
+      'BEGIN:VEVENT', 'UID:now@e2e', `DTSTART:${utc(new Date(now - 10 * 60_000))}`, `DTEND:${utc(new Date(now + 50 * 60_000))}`, 'SUMMARY:Cal now', 'END:VEVENT',
+      'END:VCALENDAR', '',
+    ];
+    res.writeHead(200, { 'content-type': 'text/calendar' });
+    res.end(lines.join('\r\n'));
   } else if (req.url === '/notcal') {
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end('<html>hello</html>');

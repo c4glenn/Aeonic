@@ -64,3 +64,40 @@ export function monthGrid(anchor: string): string[][] {
   for (let start = gridStart; start <= lastDay; start = addDays(start, 7)) weeks.push(weekFrom(start));
   return weeks;
 }
+
+/** Is this a valid IANA time zone name? */
+export function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Offset of `tz` from UTC at instant `ms`, in milliseconds (east is positive). */
+function zoneOffsetMs(ms: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(ms));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return asUtc - Math.floor(ms / 1000) * 1000;
+}
+
+/**
+ * The instant (epoch ms) at which the wall clock in `tz` reads `date` `hhmm`.
+ * Tasks store wall-clock times with no zone; this is how they become comparable to real instants.
+ * In a DST gap the result is the nearest valid instant; in an overlap, the earlier one.
+ */
+export function zonedToInstant(date: string, hhmm: string, tz: string): number {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const [hh, mm] = hhmm.split(':').map(Number) as [number, number];
+  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  let guess = wall - zoneOffsetMs(wall, tz);
+  guess = wall - zoneOffsetMs(guess, tz);
+  return guess;
+}

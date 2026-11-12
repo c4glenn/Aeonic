@@ -51,6 +51,11 @@ packages/client   Typed client generated from the OpenAPI spec
 - **Drop time must come from the live pointer position** (tracked in `App.tsx`), never dnd-kit's `delta`, which includes auto-scroll compensation. The grid only auto-scrolls while the pointer is inside it (`data-autoscroll="pointer"`).
 - Overlap layout and snapping live in `packages/domain/src/time.ts` (`layoutOverlaps`, `clampBlock`).
 
+## 3c. Now banner
+- `GET /api/v1/now?tz=&at=` → `{ now, current, next }` (`apps/api/src/now.ts`, pure `computeNow`). Only items with clock times count: timed tasks (wall-clock read in `tz`, default server `TZ`) and timed calendar events. Untimed tasks, all-day events and done tasks are ignored. `current` = contains now (soonest-ending if several); `next` = next to start (up to 14 days ahead), also returned while something is current.
+- The header banner (`features/now/NowBanner.tsx`, wording in `lib/now.ts`) says `Current task|event: “…” ends at h:mm (h:mm left)` or `Upcoming task|event: “…” starts at h:mm (h:mm away)`. The state word and noun are always spelled out; icon/styling only reinforce them. It passes the browser's zone as `tz`, refreshes on SSE events and every minute, and refetches when the clock crosses the item's boundary.
+- Task wall-clock → instant conversion is `zonedToInstant` in `packages/domain/src/dates.ts` (DST-safe).
+
 ## 4. API conventions
 - JSON, RFC 9457 problem-details errors, cursor pagination.
 - `Idempotency-Key` honored on POST; ETag / `If-Match` on PATCH.

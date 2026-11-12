@@ -1303,6 +1303,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What is happening now, and what is next
+         * @description Looks at timed tasks (their wall-clock time is read in `tz`) and timed calendar events. Untimed tasks, all-day events and completed tasks are ignored. `current` is whatever contains the current instant (soonest-ending if several overlap); `next` is the next to start, looking up to 14 days ahead.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description IANA time zone for task wall-clock times. Defaults to the server TZ. */
+                    tz?: string;
+                    /** @description Evaluate at this instant instead of now (for testing and integrations) */
+                    at?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Now"];
+                    };
+                };
+                /** @description Bad time zone */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendars": {
         parameters: {
             query?: never;
@@ -1896,6 +1958,28 @@ export interface components {
                 createdAt?: string;
             }[];
         };
+        Now: {
+            now: string;
+            current: components["schemas"]["NowItem"];
+            next: components["schemas"]["NowItem"] & unknown;
+        };
+        /** @description Happening right now; the soonest-ending one if several overlap */
+        NowItem: {
+            /** @enum {string} */
+            kind: "task" | "event";
+            id: string;
+            title: string;
+            /** @description ISO-8601 instant (UTC) */
+            start: string;
+            /** @description ISO-8601 instant (UTC) */
+            end: string;
+            /** @description Set for tasks */
+            projectName: string | null;
+            /** @description Set for calendar events */
+            calendarName: string | null;
+            /** @description Calendar color key for events */
+            calendarColor: string | null;
+        } | null;
         Calendar: {
             id: string;
             name: string;

@@ -26,7 +26,9 @@ import { Bus, startWebhookDispatcher, type WebhookOptions } from './events';
 import { HttpError } from './problem';
 import * as S from './schemas';
 import { Calendars } from './calendars';
+import { computeNow } from './now';
 import { Store } from './service';
+import { addDays, isValidTimeZone, todayIn } from '@aeonic/domain';
 
 export interface AppOptions {
   cfg: Config;
@@ -454,6 +456,40 @@ export function createApp(opts: AppOptions) {
       responses: { ...ok(z.object({ projects: z.number(), tasks: z.number() })), 401: errs[401], 422: { description: 'Invalid', content: problemContent } },
     }),
     (c) => c.json(store.import(c.req.valid('json')), 200),
+  );
+
+  // ----- now (current / next item) -----
+  app.openapi(
+    createRoute({
+      method: 'get', path: '/api/v1/now', tags: ['Views'],
+      summary: 'What is happening now, and what is next',
+      description:
+        'Looks at timed tasks (their wall-clock time is read in `tz`) and timed calendar events. ' +
+        'Untimed tasks, all-day events and completed tasks are ignored. ' +
+        '`current` is whatever contains the current instant (soonest-ending if several overlap); `next` is the next to start, looking up to 14 days ahead.',
+      request: {
+        query: z.object({
+          tz: z.string().optional().openapi({ description: 'IANA time zone for task wall-clock times. Defaults to the server TZ.', example: 'Europe/London' }),
+          at: z.string().datetime().optional().openapi({ description: 'Evaluate at this instant instead of now (for testing and integrations)' }),
+        }),
+      },
+      responses: { ...ok(S.NowSchema), 401: errs[401], 400: { description: 'Bad time zone', content: problemContent } },
+    }),
+    (c) => {
+      const { tz = cfg.timeZone, at } = c.req.valid('query');
+      if (!isValidTimeZone(tz)) throw new HttpError(400, 'Bad time zone', `Unknown IANA time zone: ${tz}`);
+      const nowMs = at ? Date.parse(at) : store.clock().getTime();
+      const today = todayIn(tz, new Date(nowMs));
+      const tasks = store.allTaskViews();
+      return c.json(
+        computeNow({
+          nowMs, tz, tasks,
+          projectNames: new Map(store.listProjects(true).map((p) => [p.id, p.name])),
+          events: calendars.events(addDays(today, -1), addDays(today, 14)),
+        }),
+        200,
+      );
+    },
   );
 
   // ----- calendars (ICS subscriptions) -----

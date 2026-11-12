@@ -242,3 +242,24 @@ export const CalendarEventSchema = z
     location: z.string().nullable(),
   })
   .openapi('CalendarEvent');
+
+export const NowItemSchema = z
+  .object({
+    kind: z.enum(['task', 'event']),
+    id: z.string(),
+    title: z.string(),
+    start: z.string().openapi({ description: 'ISO-8601 instant (UTC)' }),
+    end: z.string().openapi({ description: 'ISO-8601 instant (UTC)' }),
+    projectName: z.string().nullable().openapi({ description: 'Set for tasks' }),
+    calendarName: z.string().nullable().openapi({ description: 'Set for calendar events' }),
+    calendarColor: z.string().nullable().openapi({ description: 'Calendar color key for events' }),
+  })
+  .openapi('NowItem');
+
+export const NowSchema = z
+  .object({
+    now: z.string(),
+    current: NowItemSchema.nullable().openapi({ description: 'Happening right now; the soonest-ending one if several overlap' }),
+    next: NowItemSchema.nullable().openapi({ description: 'Next thing to start after now (also given while something is current)' }),
+  })
+  .openapi('Now');

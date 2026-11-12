@@ -21,3 +21,6 @@ Settings → Calendars: paste an ICS link (`https://…` or `webcal://…`) from
 
 ## Hour grid
 In the Week view, drop a task on a day's hour grid to create a 30-minute block, then drag its bottom edge (or use ↑/↓) to change the length in 15-minute steps. Drag blocks to move them; drop on the day card to make a task untimed again.
+
+## Now banner / `GET /api/v1/now`
+The header shows what's happening right now (or what's next): `Current task: "Write spec" ends at 10:30 AM (0:25 left)` / `Upcoming event: "Standup" starts at 9:00 AM (1:05 away)`. It covers timed tasks and timed calendar events. The same data is available to your own tools: `curl -H "Authorization: Bearer <token>" "https://host/api/v1/now?tz=Europe/London"`.

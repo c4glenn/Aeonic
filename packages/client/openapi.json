@@ -879,6 +879,93 @@
           "tasks"
         ]
       },
+      "Now": {
+        "type": "object",
+        "properties": {
+          "now": {
+            "type": "string"
+          },
+          "current": {
+            "$ref": "#/components/schemas/NowItem"
+          },
+          "next": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NowItem"
+              },
+              {
+                "description": "Next thing to start after now (also given while something is current)"
+              }
+            ]
+          }
+        },
+        "required": [
+          "now",
+          "current",
+          "next"
+        ]
+      },
+      "NowItem": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "event"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "description": "ISO-8601 instant (UTC)"
+          },
+          "end": {
+            "type": "string",
+            "description": "ISO-8601 instant (UTC)"
+          },
+          "projectName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set for tasks"
+          },
+          "calendarName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set for calendar events"
+          },
+          "calendarColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Calendar color key for events"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "start",
+          "end",
+          "projectName",
+          "calendarName",
+          "calendarColor"
+        ],
+        "description": "Happening right now; the soonest-ending one if several overlap"
+      },
       "Calendar": {
         "type": "object",
         "properties": {
@@ -2482,6 +2569,71 @@
           },
           "422": {
             "description": "Invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/now": {
+      "get": {
+        "tags": [
+          "Views"
+        ],
+        "summary": "What is happening now, and what is next",
+        "description": "Looks at timed tasks (their wall-clock time is read in `tz`) and timed calendar events. Untimed tasks, all-day events and completed tasks are ignored. `current` is whatever contains the current instant (soonest-ending if several overlap); `next` is the next to start, looking up to 14 days ahead.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "IANA time zone for task wall-clock times. Defaults to the server TZ.",
+              "example": "Europe/London"
+            },
+            "required": false,
+            "description": "IANA time zone for task wall-clock times. Defaults to the server TZ.",
+            "name": "tz",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Evaluate at this instant instead of now (for testing and integrations)"
+            },
+            "required": false,
+            "description": "Evaluate at this instant instead of now (for testing and integrations)",
+            "name": "at",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Now"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad time zone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {

@@ -160,3 +160,24 @@ describe('layoutOverlaps', () => {
     expect(by.d).toMatchObject({ lane: 0, lanes: 1 });
   });
 });
+
+import { isValidTimeZone, zonedToInstant } from './index';
+
+describe('zonedToInstant', () => {
+  const iso = (ms: number) => new Date(ms).toISOString();
+  it('handles standard, daylight and half-hour zones', () => {
+    expect(iso(zonedToInstant('2026-11-11', '09:00', 'America/New_York'))).toBe('2026-11-11T14:00:00.000Z'); // EST
+    expect(iso(zonedToInstant('2026-07-01', '09:00', 'America/New_York'))).toBe('2026-07-01T13:00:00.000Z'); // EDT
+    expect(iso(zonedToInstant('2026-11-11', '09:00', 'Asia/Kolkata'))).toBe('2026-11-11T03:30:00.000Z');
+    expect(iso(zonedToInstant('2026-11-11', '23:30', 'UTC'))).toBe('2026-11-11T23:30:00.000Z');
+  });
+  it('is right across a DST change day', () => {
+    // US DST ended 2026-11-01 at 02:00 → 00:30 is still EDT, 08:00 is EST
+    expect(iso(zonedToInstant('2026-11-01', '00:30', 'America/New_York'))).toBe('2026-11-01T04:30:00.000Z');
+    expect(iso(zonedToInstant('2026-11-01', '08:00', 'America/New_York'))).toBe('2026-11-01T13:00:00.000Z');
+  });
+  it('validates zone names', () => {
+    expect(isValidTimeZone('Europe/Paris')).toBe(true);
+    expect(isValidTimeZone('Mars/Olympus')).toBe(false);
+  });
+});

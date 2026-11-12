@@ -15,6 +15,7 @@ import { ProjectDialog, type ProjectDialogState } from '@/features/forms/Project
 import { TaskDialog, type TaskDialogState } from '@/features/forms/TaskDialog';
 import { ProjectCard } from '@/features/projects/ProjectCard';
 import { Settings } from '@/features/settings/Settings';
+import { NowBanner } from '@/features/now/NowBanner';
 import { Toolbar } from '@/features/toolbar/Toolbar';
 import { WeekStrip } from '@/features/week/WeekStrip';
 import type { Ghost } from '@/features/week/TimeGrid';
@@ -115,11 +116,13 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
   const current = NAV.find((n) => n.hash === hash)?.mode ?? 'week';
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1500px] flex-col gap-3 px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
-      <header className="flex items-center justify-between gap-2">
-        <a href="#/" className="font-display text-xl font-bold tracking-tight max-sm:sr-only">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <a href="#/" className="shrink-0 font-display text-xl font-bold tracking-tight max-sm:sr-only">
           <span className="text-primary">▮▮</span> Aeonic
         </a>
-        <nav className="flex gap-1 max-sm:w-full max-sm:justify-between" aria-label="Views">
+        {/* desktop: logo | banner | nav on one line; small screens: nav on top, banner below */}
+        <NowBanner className="order-last w-full lg:order-none lg:w-auto lg:flex-1" />
+        <nav className="flex gap-1 max-sm:w-full max-sm:justify-between lg:ml-auto" aria-label="Views">
           {NAV.map(({ hash: h, mode, label, icon: Icon }) => (
             <Button key={mode} variant={current === mode ? 'secondary' : 'ghost'} className="h-10 max-sm:flex-1 max-sm:flex-col max-sm:gap-0 max-sm:text-[11px]" asChild>
               <a href={h} aria-current={current === mode ? 'page' : undefined}>
