@@ -19,11 +19,13 @@ export const randomToken = (prefix = '') => prefix + randomBytes(32).toString('b
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
+  // ':' rather than '$' — '$' gets eaten by docker compose / Portainer variable interpolation
+  return `scrypt:${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
 export function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [alg, saltHex, hashHex] = stored.split('$');
+  // accepts the current 'scrypt:salt:hash' and the original 'scrypt$salt$hash'
+  const [alg, saltHex, hashHex] = stored.trim().split(/[$:]/);
   if (alg !== 'scrypt' || !saltHex || !hashHex) return Promise.resolve(false);
   const expected = Buffer.from(hashHex, 'hex');
   return new Promise((resolve) => {

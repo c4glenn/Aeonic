@@ -1,10 +1,21 @@
+# Deploys from a plain git checkout — no .env file needed.
+# Set these as environment variables: in Portainer ("Environment variables" when creating the stack),
+# or in a local .env next to this file (Compose reads that automatically for ${…} substitution).
 services:
   aeonic:
     build: .
     restart: unless-stopped
-    ports: ["3000:3000"]
-    env_file: .env
+    ports:
+      - "${PORT:-3000}:3000"
     environment:
+      # required: generate with `pnpm --filter @aeonic/api hash-password '<password>'` (see README: "Deploy")
+      ADMIN_PASSWORD_HASH: "${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH - see the README Deploy section}"
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      TZ: ${TZ:-UTC}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      ICS_REFRESH_MINUTES: ${ICS_REFRESH_MINUTES:-30}
+      # fixed inside the container
+      PORT: "3000"
       DATABASE_PATH: /data/aeonic.db
     volumes:
       - aeonic-data:/data

@@ -65,6 +65,20 @@ describe('auth', () => {
   });
 });
 
+describe('password hashes', () => {
+  it('generates a $-free hash and still accepts the original $-separated format', async () => {
+    const { verifyPassword, hashPassword } = await import('./auth');
+    const h = hashPassword('s3cret');
+    expect(h).toMatch(/^scrypt:[0-9a-f]+:[0-9a-f]+$/);
+    expect(h).not.toContain('$');
+    expect(await verifyPassword('s3cret', h)).toBe(true);
+    expect(await verifyPassword('nope', h)).toBe(false);
+    expect(await verifyPassword('s3cret', h.replace(/:/g, '$'))).toBe(true);
+    expect(await verifyPassword('s3cret', ` ${h}\n`)).toBe(true); // stray whitespace from a pasted env value
+    expect(await verifyPassword('s3cret', 'garbage')).toBe(false);
+  });
+});
+
 describe('login rate limit', () => {
   it('locks out after repeated failures but never counts successes', async () => {
     const login = (password: string) =>
