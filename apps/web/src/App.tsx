@@ -5,8 +5,8 @@ import {
 } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, CalendarDays, ChartGantt, ListTodo, Settings as SettingsIcon } from 'lucide-react';
-import { clampBlock, DEFAULT_DURATION, minutesToTime } from '@todo/domain';
-import { ApiError, unwrap, type Project, type Task } from '@todo/client';
+import { clampBlock, DEFAULT_DURATION, minutesToTime } from '@aeonic/domain';
+import { ApiError, unwrap, type Project, type Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { Login } from '@/features/auth/Login';
@@ -117,7 +117,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
     <div className="mx-auto flex min-h-dvh max-w-[1500px] flex-col gap-3 px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between gap-2">
         <a href="#/" className="font-display text-xl font-bold tracking-tight max-sm:sr-only">
-          <span className="text-primary">▮▮</span> Todo Tool
+          <span className="text-primary">▮▮</span> Aeonic
         </a>
         <nav className="flex gap-1 max-sm:w-full max-sm:justify-between" aria-label="Views">
           {NAV.map(({ hash: h, mode, label, icon: Icon }) => (

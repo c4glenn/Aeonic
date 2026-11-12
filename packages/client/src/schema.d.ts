@@ -1029,7 +1029,7 @@ export interface paths {
         put?: never;
         /**
          * Register a webhook
-         * @description Deliveries are POSTed as JSON with `X-Todo-Event` and `X-Todo-Signature: sha256=<hmac of body using the secret>`. Events: task.created|updated|deleted|scheduled|unscheduled|completed, project.created|updated|deleted. Empty `events` = all.
+         * @description Deliveries are POSTed as JSON with `X-Aeonic-Event` and `X-Aeonic-Signature: sha256=<hmac of body using the secret>`. Events: task.created|updated|deleted|scheduled|unscheduled|completed, project.created|updated|deleted. Empty `events` = all.
          */
         post: {
             parameters: {

@@ -1,6 +1,6 @@
 import { useDroppable } from '@dnd-kit/core';
-import { isWeekend } from '@todo/domain';
-import type { CalendarEvent, Task } from '@todo/client';
+import { isWeekend } from '@aeonic/domain';
+import type { CalendarEvent, Task } from '@aeonic/client';
 import { DueMark } from '@/components/marks';
 import { EventTag } from '@/components/event-marks';
 import type { Board } from '@/lib/board';

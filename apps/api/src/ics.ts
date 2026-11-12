@@ -36,7 +36,7 @@ export async function fetchIcs(url: URL, doFetch: typeof fetch = fetch): Promise
   let res: Response;
   try {
     res = await doFetch(url, {
-      headers: { accept: 'text/calendar, text/plain;q=0.8, */*;q=0.5', 'user-agent': 'todo-tool-ics/1' },
+      headers: { accept: 'text/calendar, text/plain;q=0.8, */*;q=0.5', 'user-agent': 'aeonic-ics/1' },
       redirect: 'follow',
       signal: AbortSignal.timeout(15_000),
     });

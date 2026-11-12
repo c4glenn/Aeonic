@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signIn } from './helpers';
 
-const H = { 'x-requested-with': 'todo-web' };
+const H = { 'x-requested-with': 'aeonic-web' };
 const PX_PER_MIN = 0.8;
 
 const iso = (offset: number) => {

@@ -69,8 +69,8 @@ function setup(respond: () => Response | Promise<Response> = () => new Response(
   });
   ctx.store.db.sqlite
     .prepare("INSERT INTO tokens (id,name,hash,scope,created_at) VALUES ('t1','w',?,'write','x'),('t2','r',?,'read','x')")
-    .run(sha256('tdt_test'), sha256('tdt_ro'));
-  const call = async (method: string, path: string, body?: unknown, token = 'tdt_test') => {
+    .run(sha256('aet_test'), sha256('aet_ro'));
+  const call = async (method: string, path: string, body?: unknown, token = 'aet_test') => {
     const res = await ctx.app.request(path, {
       method,
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -162,8 +162,8 @@ describe('ICS calendars', () => {
 
   it('read-only tokens can read but not subscribe', async () => {
     await t.call('POST', '/api/v1/calendars', { name: 'Work', url: SECRET_URL });
-    expect((await t.call('GET', '/api/v1/calendars', undefined, 'tdt_ro')).status).toBe(200);
-    expect((await t.call('POST', '/api/v1/calendars', { name: 'x', url: SECRET_URL }, 'tdt_ro')).status).toBe(403);
+    expect((await t.call('GET', '/api/v1/calendars', undefined, 'aet_ro')).status).toBe(200);
+    expect((await t.call('POST', '/api/v1/calendars', { name: 'x', url: SECRET_URL }, 'aet_ro')).status).toBe(403);
   });
 });
 

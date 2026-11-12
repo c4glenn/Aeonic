@@ -21,7 +21,7 @@ export function Login({ onDone }: { onDone: () => void }) {
           setBusy(false);
         }}
       >
-        <h1 className="text-2xl font-semibold">Todo Tool</h1>
+        <h1 className="text-2xl font-semibold">Aeonic</h1>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="pw">Password</Label>
           <Input id="pw" type="password" autoFocus autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} className="h-11" />

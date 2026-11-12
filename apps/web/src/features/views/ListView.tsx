@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { CalendarDays, CalendarPlus, Lock, X } from 'lucide-react';
-import { addDays, timeToMinutes } from '@todo/domain';
-import type { Task } from '@todo/client';
+import { addDays, timeToMinutes } from '@aeonic/domain';
+import type { Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';

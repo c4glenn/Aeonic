@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: [
     { command: 'node e2e/ics-server.mjs', url: 'http://localhost:3102/cal.ics', reuseExistingServer: false },
     {
-    command: 'pnpm --filter @todo/api start',
+    command: 'pnpm --filter @aeonic/api start',
     url: 'http://localhost:3101/healthz',
     reuseExistingServer: false,
     env: {

@@ -46,9 +46,9 @@ export function startWebhookDispatcher(db: Db, bus: Bus, opts: WebhookOptions = 
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-todo-event': event.type,
-          'x-todo-delivery': event.id,
-          'x-todo-signature': sign(hook.secret, body),
+          'x-aeonic-event': event.type,
+          'x-aeonic-delivery': event.id,
+          'x-aeonic-signature': sign(hook.secret, body),
         },
         body,
         signal: AbortSignal.timeout(10_000),

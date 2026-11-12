@@ -1,5 +1,5 @@
 {
-  "name": "@todo/api",
+  "name": "@aeonic/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
     "@hono/node-server": "^2.1.7",
     "@hono/zod-openapi": "^1.6.3",
     "@scalar/hono-api-reference": "^0.12.19",
-    "@todo/domain": "workspace:*",
+    "@aeonic/domain": "workspace:*",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.18",

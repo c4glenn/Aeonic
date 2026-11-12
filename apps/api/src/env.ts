@@ -11,7 +11,7 @@ export interface Config {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
-    databasePath: env.DATABASE_PATH ?? './data/todo.db',
+    databasePath: env.DATABASE_PATH ?? './data/aeonic.db',
     adminPasswordHash: env.ADMIN_PASSWORD_HASH ?? '',
     sessionSecret: env.SESSION_SECRET ?? 'dev-secret',
     corsOrigins: (env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),

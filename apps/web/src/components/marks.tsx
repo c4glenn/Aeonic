@@ -1,5 +1,5 @@
 import { Flag, Hourglass, Lock } from 'lucide-react';
-import type { Urgency } from '@todo/domain';
+import type { Urgency } from '@aeonic/domain';
 import { cn } from '@/lib/utils';
 
 export const IMPORTANCE_LABELS = ['', 'Low', 'Normal', 'High', 'Critical'] as const;

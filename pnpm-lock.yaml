@@ -20,6 +20,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@aeonic/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@hono/node-server':
         specifier: ^2.1.7
         version: 2.1.7(hono@4.13.18)
@@ -29,9 +32,6 @@ importers:
       '@scalar/hono-api-reference':
         specifier: ^0.12.19
         version: 0.12.19(hono@4.13.18)
-      '@todo/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
       better-sqlite3:
         specifier: ^11.10.0
         version: 11.10.0
@@ -69,6 +69,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@aeonic/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@aeonic/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -81,12 +87,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
-      '@todo/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@todo/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

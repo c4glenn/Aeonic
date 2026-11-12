@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CalendarDays, Copy, Download, ExternalLink, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { ApiError, unwrap, type Calendar } from '@todo/client';
+import { ApiError, unwrap, type Calendar } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,7 +217,7 @@ function Webhooks() {
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.webhooks }),
   });
   return (
-    <Section title="Webhooks" hint="Receive task and project events as signed JSON (X-Todo-Signature, HMAC-SHA256).">
+    <Section title="Webhooks" hint="Receive task and project events as signed JSON (X-Aeonic-Signature, HMAC-SHA256).">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -248,7 +248,7 @@ function Backup() {
   const exportAll = async () => {
     const data = await unwrap(api.GET('/api/v1/export'));
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: `todo-backup-${new Date().toISOString().slice(0, 10)}.json` });
+    const a = Object.assign(document.createElement('a'), { href: url, download: `aeonic-backup-${new Date().toISOString().slice(0, 10)}.json` });
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -260,7 +260,7 @@ function Backup() {
       toast.success(`Imported ${r.projects} projects, ${r.tasks} tasks`);
       void qc.invalidateQueries();
     } catch {
-      toast.error('Import failed — is this a Todo Tool backup?');
+      toast.error('Import failed — is this a Aeonic backup?');
     }
   };
   return (

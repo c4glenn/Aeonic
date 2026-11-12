@@ -37,7 +37,7 @@ export const SESSION_COOKIE = 'sid';
 export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
 /** Cookie-authenticated mutating requests must carry this header (CSRF defence). */
 export const CSRF_HEADER = 'x-requested-with';
-export const CSRF_VALUE = 'todo-web';
+export const CSRF_VALUE = 'aeonic-web';
 
 export function createSession(db: Db): { id: string; expires: number } {
   const id = randomToken();

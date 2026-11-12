@@ -22,7 +22,7 @@ import {
   type Task,
   type TaskFilter,
   type Urgency,
-} from '@todo/domain';
+} from '@aeonic/domain';
 import type { Config } from './env';
 import type { Db } from './db';
 import { schema } from './db';

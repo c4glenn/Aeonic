@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core';
-import { timeToMinutes } from '@todo/domain';
-import type { Task } from '@todo/client';
+import { timeToMinutes } from '@aeonic/domain';
+import type { Task } from '@aeonic/client';
 import { fmtClock } from '@/lib/events';
 import { cn } from '@/lib/utils';
 

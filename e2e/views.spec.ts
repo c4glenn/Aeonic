@@ -6,7 +6,7 @@ const iso = (offset: number) => {
   d.setDate(d.getDate() + offset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-const H = { 'x-requested-with': 'todo-web' };
+const H = { 'x-requested-with': 'aeonic-web' };
 
 /** Project "Views" with: A (scheduled today, hard due +4) → B (scheduled +2, soft due +6); C free; D blocked by C. */
 async function seed(page: Page, name: string) {

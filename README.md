@@ -1,4 +1,4 @@
-# Todo Tool
+# Aeonic
 
 Self-hosted, API-first planner: a 7-day board, project cards with dependency-aware subtasks, tags, importance and hard/soft due dates. The web UI is just a client of the public API (`/api/docs`).
 
@@ -6,10 +6,10 @@ Self-hosted, API-first planner: a 7-day board, project cards with dependency-awa
 ```
 pnpm install
 cp .env.example .env
-pnpm --filter @todo/api hash-password 'your-password'   # paste output into ADMIN_PASSWORD_HASH
+pnpm --filter @aeonic/api hash-password 'your-password'   # paste output into ADMIN_PASSWORD_HASH
 pnpm dev                                                 # web :5173, api :3000
 ```
-Production: `docker compose up --build` (data lives in the `todo-data` volume; put it behind a TLS reverse proxy).
+Production: `docker compose up --build` (data lives in the `aeonic-data` volume; put it behind a TLS reverse proxy).
 
 ## API
 Create a token in Settings, then `curl -H "Authorization: Bearer <token>" https://host/api/v1/week`.

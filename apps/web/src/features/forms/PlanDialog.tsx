@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, ListPlus } from 'lucide-react';
-import type { Task } from '@todo/client';
+import type { Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fmtClock } from '@/lib/events';
-import { timeToMinutes } from '@todo/domain';
+import { timeToMinutes } from '@aeonic/domain';
 
 export interface PlanTarget {
   task: Task;

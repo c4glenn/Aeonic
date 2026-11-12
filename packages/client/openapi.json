@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Todo Tool API",
+    "title": "Aeonic API",
     "version": "1.0.0",
     "description": "Authenticate with `Authorization: Bearer <token>` (create tokens in Settings). Errors are RFC 9457 problem+json. `POST` honors `Idempotency-Key`; `PATCH` honors `If-Match` with the ETag from GET. `GET /api/v1/events` streams server-sent events."
   },
@@ -2193,7 +2193,7 @@
           "Webhooks"
         ],
         "summary": "Register a webhook",
-        "description": "Deliveries are POSTed as JSON with `X-Todo-Event` and `X-Todo-Signature: sha256=<hmac of body using the secret>`. Events: task.created|updated|deleted|scheduled|unscheduled|completed, project.created|updated|deleted. Empty `events` = all.",
+        "description": "Deliveries are POSTed as JSON with `X-Aeonic-Event` and `X-Aeonic-Signature: sha256=<hmac of body using the secret>`. Events: task.created|updated|deleted|scheduled|unscheduled|completed, project.created|updated|deleted. Empty `events` = all.",
         "requestBody": {
           "required": true,
           "content": {

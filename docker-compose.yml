@@ -1,12 +1,12 @@
 services:
-  todo:
+  aeonic:
     build: .
     restart: unless-stopped
     ports: ["3000:3000"]
     env_file: .env
     environment:
-      DATABASE_PATH: /data/todo.db
+      DATABASE_PATH: /data/aeonic.db
     volumes:
-      - todo-data:/data
+      - aeonic-data:/data
 volumes:
-  todo-data:
+  aeonic-data:

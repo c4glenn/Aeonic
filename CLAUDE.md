@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## 1. Overview
-Self-hosted, API-first todo/planner. The web UI is one client of a public REST API so the owner's other tools can integrate.
+Self-hosted, API-first planner. The web UI is one client of a public REST API so the owner's other tools can integrate.
 
 Main view: a 7-day strip (today + 6) with project cards below. Each card lists its **unblocked** subtasks as draggable items; dropping one on a day opens "What are you planning on doing?" with a *whole subtask* option or a text field that creates a new child subtask.
 
@@ -19,7 +19,7 @@ Requires Node 20 and pnpm 10.
 
 ```
 pnpm install
-cp .env.example .env     # ADMIN_PASSWORD_HASH (pnpm --filter @todo/api hash-password '<pw>'), SESSION_SECRET, DATABASE_PATH, CORS_ORIGINS, TZ
+cp .env.example .env     # ADMIN_PASSWORD_HASH (pnpm --filter @aeonic/api hash-password '<pw>'), SESSION_SECRET, DATABASE_PATH, CORS_ORIGINS, TZ
 pnpm db:migrate
 pnpm dev                 # api + web
 pnpm test                # vitest (domain + api)

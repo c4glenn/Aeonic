@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { dependentsMap, transitiveDependents } from '@todo/domain';
-import type { Task } from '@todo/client';
+import { dependentsMap, transitiveDependents } from '@aeonic/domain';
+import type { Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

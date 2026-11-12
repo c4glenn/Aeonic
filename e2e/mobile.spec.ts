@@ -4,7 +4,7 @@ import { signIn } from './helpers';
 test('mobile: no horizontal page scroll and tap-to-schedule works', async ({ page }) => {
   await signIn(page);
   // own data, so this test doesn't depend on what the desktop specs left behind
-  const headers = { 'x-requested-with': 'todo-web' };
+  const headers = { 'x-requested-with': 'aeonic-web' };
   const project = await (await page.request.post('/api/v1/projects', { headers, data: { name: 'Mobile project' } })).json();
   await page.request.post('/api/v1/tasks', { headers, data: { projectId: project.id, title: 'Tap me' } });
   await page.goto(`/?projects=${project.id}`); // just this project's card, as a user would filter

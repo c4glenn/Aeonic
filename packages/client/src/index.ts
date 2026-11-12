@@ -36,7 +36,7 @@ export function createApiClient(opts: ClientOptions = {}) {
   const mw: Middleware = {
     onRequest({ request }) {
       if (opts.token) request.headers.set('authorization', `Bearer ${opts.token}`);
-      if (opts.browser) request.headers.set('x-requested-with', 'todo-web');
+      if (opts.browser) request.headers.set('x-requested-with', 'aeonic-web');
       return request;
     },
   };

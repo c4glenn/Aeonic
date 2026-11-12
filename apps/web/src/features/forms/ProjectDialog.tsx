@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Archive, Trash2 } from 'lucide-react';
-import type { Project } from '@todo/client';
+import type { Project } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Flag, Hourglass } from 'lucide-react';
-import { addDays, daysBetween, isWeekend } from '@todo/domain';
-import type { CalendarEvent, Task } from '@todo/client';
+import { addDays, daysBetween, isWeekend } from '@aeonic/domain';
+import type { CalendarEvent, Task } from '@aeonic/client';
 import { useCalendarEvents } from '@/lib/api';
 import { calendarColor, eventDates } from '@/lib/events';
 import { eventTitle } from '@/components/event-marks';

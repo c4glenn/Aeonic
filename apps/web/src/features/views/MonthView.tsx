@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight, Flag, Hourglass } from 'lucide-react';
-import { addMonths, isWeekend, monthGrid, startOfMonth } from '@todo/domain';
-import type { CalendarEvent, Task } from '@todo/client';
+import { addMonths, isWeekend, monthGrid, startOfMonth } from '@aeonic/domain';
+import type { CalendarEvent, Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DueMark } from '@/components/marks';

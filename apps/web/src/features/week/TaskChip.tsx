@@ -5,8 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ImportanceMark, TagChip, UrgencyMark } from '@/components/marks';
-import type { Task } from '@todo/client';
-import type { Urgency } from '@todo/domain';
+import type { Task } from '@aeonic/client';
+import type { Urgency } from '@aeonic/domain';
 import { cn } from '@/lib/utils';
 
 interface Props {

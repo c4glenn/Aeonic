@@ -368,7 +368,7 @@ export function createApp(opts: AppOptions) {
     }),
     (c) => {
       const { name, scope } = c.req.valid('json');
-      const secret = randomToken('tdt_');
+      const secret = randomToken('aet_');
       const row = { id: nanoid(10), name, hash: sha256(secret), scope, createdAt: new Date().toISOString(), lastUsedAt: null };
       db.insert(schema.tokens).values(row).run();
       return c.json({ id: row.id, name, scope, createdAt: row.createdAt, lastUsedAt: null, token: secret }, 201);
@@ -399,7 +399,7 @@ export function createApp(opts: AppOptions) {
       method: 'post', path: '/api/v1/webhooks', tags: ['Webhooks'],
       summary: 'Register a webhook',
       description:
-        'Deliveries are POSTed as JSON with `X-Todo-Event` and `X-Todo-Signature: sha256=<hmac of body using the secret>`. ' +
+        'Deliveries are POSTed as JSON with `X-Aeonic-Event` and `X-Aeonic-Signature: sha256=<hmac of body using the secret>`. ' +
         'Events: task.created|updated|deleted|scheduled|unscheduled|completed, project.created|updated|deleted. Empty `events` = all.',
       request: { body: body(z.object({ url: z.string().url(), events: z.array(z.string()).default([]), secret: z.string().min(16).optional() })) },
       responses: {
@@ -538,7 +538,7 @@ export function createApp(opts: AppOptions) {
   app.doc31('/api/openapi.json', {
     openapi: '3.1.0',
     info: {
-      title: 'Todo Tool API',
+      title: 'Aeonic API',
       version: '1.0.0',
       description:
         'Authenticate with `Authorization: Bearer <token>` (create tokens in Settings). Errors are RFC 9457 problem+json. ' +

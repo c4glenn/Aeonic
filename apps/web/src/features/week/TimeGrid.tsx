@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Flag } from 'lucide-react';
-import { clampBlock, DEFAULT_DURATION, isWeekend, layoutOverlaps, MIN_DURATION, SNAP_MINUTES, timeToMinutes } from '@todo/domain';
-import type { CalendarEvent, Task } from '@todo/client';
+import { clampBlock, DEFAULT_DURATION, isWeekend, layoutOverlaps, MIN_DURATION, SNAP_MINUTES, timeToMinutes } from '@aeonic/domain';
+import type { CalendarEvent, Task } from '@aeonic/client';
 import { calendarColor, fmtClock, fmtHour, segmentsFor, type DaySegment } from '@/lib/events';
 import { eventTitle } from '@/components/event-marks';
 import type { Board } from '@/lib/board';

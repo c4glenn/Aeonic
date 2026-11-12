@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import type { CalendarEvent } from '@todo/client';
+import type { CalendarEvent } from '@aeonic/client';
 import { calendarColor, fmtClock } from '@/lib/events';
 import { cn } from '@/lib/utils';
 

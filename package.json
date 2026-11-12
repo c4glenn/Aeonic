@@ -1,5 +1,5 @@
 {
-  "name": "todo-tool",
+  "name": "aeonic",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.32.1",
@@ -7,13 +7,13 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @todo/api --filter @todo/web dev",
+    "dev": "pnpm --parallel --filter @aeonic/api --filter @aeonic/web dev",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
-    "db:migrate": "pnpm --filter @todo/api db:migrate",
-    "client:generate": "pnpm --filter @todo/api openapi && pnpm --filter @todo/client generate",
+    "db:migrate": "pnpm --filter @aeonic/api db:migrate",
+    "client:generate": "pnpm --filter @aeonic/api openapi && pnpm --filter @aeonic/client generate",
     "e2e": "playwright test"
   },
   "devDependencies": {

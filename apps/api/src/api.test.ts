@@ -10,10 +10,10 @@ const NOW = new Date('2026-11-11T12:00:00Z');
 function setup(extra: Parameters<typeof createApp>[0]['webhook'] = { retryDelays: [0] }) {
   const cfg = { ...loadConfig({}), adminPasswordHash: hashPassword('pw'), timeZone: 'UTC' };
   const ctx = createApp({ cfg, db: createDb(':memory:'), clock: () => NOW, webhook: extra });
-  const secret = 'tdt_test';
+  const secret = 'aet_test';
   ctx.store.db.sqlite
     .prepare("INSERT INTO tokens (id,name,hash,scope,created_at) VALUES ('t1','w',?,'write','x'),('t2','r',?,'read','x')")
-    .run(sha256(secret), sha256('tdt_ro'));
+    .run(sha256(secret), sha256('aet_ro'));
   const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}, token = secret) => {
     const res = await ctx.app.request(path, {
       method,
@@ -42,8 +42,8 @@ async function chain() {
 describe('auth', () => {
   it('rejects missing/invalid tokens and enforces read scope', async () => {
     expect((await t.call('GET', '/api/v1/tasks', undefined, {}, 'nope')).status).toBe(401);
-    expect((await t.call('GET', '/api/v1/tasks', undefined, {}, 'tdt_ro')).status).toBe(200);
-    const w = await t.call('POST', '/api/v1/projects', { name: 'x' }, {}, 'tdt_ro');
+    expect((await t.call('GET', '/api/v1/tasks', undefined, {}, 'aet_ro')).status).toBe(200);
+    const w = await t.call('POST', '/api/v1/projects', { name: 'x' }, {}, 'aet_ro');
     expect(w.status).toBe(403);
     expect(w.json.title).toBe('Forbidden');
   });
@@ -58,7 +58,7 @@ describe('auth', () => {
     expect(noCsrf.status).toBe(403);
     const ok = await t.app.request('/api/v1/projects', {
       method: 'POST',
-      headers: { cookie, 'content-type': 'application/json', 'x-requested-with': 'todo-web' },
+      headers: { cookie, 'content-type': 'application/json', 'x-requested-with': 'aeonic-web' },
       body: '{"name":"x"}',
     });
     expect(ok.status).toBe(201);
@@ -221,7 +221,7 @@ describe('events & webhooks', () => {
     await t3.call('POST', '/api/v1/tasks', { projectId: 'nope', title: 'ignored' });
     await new Promise((r) => setTimeout(r, 30));
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.headers['x-todo-signature']).toBe(sign(hook.secret, calls[0]!.body));
+    expect(calls[0]!.headers['x-aeonic-signature']).toBe(sign(hook.secret, calls[0]!.body));
     const log = (await t3.call('GET', `/api/v1/webhooks/${hook.id}/deliveries`)).json.items;
     expect(log[0]).toMatchObject({ event: 'project.created', status: 200, attempt: 1 });
   });

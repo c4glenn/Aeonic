@@ -1,5 +1,5 @@
 import { ChevronDown, Lock, Pencil, Plus } from 'lucide-react';
-import type { Project, Task } from '@todo/client';
+import type { Project, Task } from '@aeonic/client';
 import { Button } from '@/components/ui/button';
 import { ImportanceMark, LockMark, TagChip } from '@/components/marks';
 import { TaskChip } from '@/features/week/TaskChip';

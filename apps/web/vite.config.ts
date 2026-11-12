@@ -11,8 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Todo Tool',
-        short_name: 'Todo',
+        name: 'Aeonic',
+        short_name: 'Aeonic',
         theme_color: '#1b1730',
         background_color: '#1b1730',
         display: 'standalone',
