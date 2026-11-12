@@ -1,0 +1,145 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/geist';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Dark-only theme. Violet-black surfaces, lavender primary.
+ * Accents come from the Okabe–Ito colorblind-safe set. Meaning is never carried by color alone
+ * (see CLAUDE.md): pair every semantic color with an icon, pattern or border style.
+ */
+:root {
+  color-scheme: dark;
+
+  --background: #17132a;
+  --foreground: #ece8ff;
+  --card: #211c3a;
+  --card-foreground: #ece8ff;
+  --popover: #2a2447;
+  --popover-foreground: #ece8ff;
+  --primary: #b79cff;
+  --primary-foreground: #1b1237;
+  --secondary: #2f2858;
+  --secondary-foreground: #ece8ff;
+  --muted: #272148;
+  --muted-foreground: #aaa2d4;
+  --accent: #3a2f6b;
+  --accent-foreground: #f4f1ff;
+  --destructive: #e8793a; /* vermillion-orange, not red */
+  --destructive-foreground: #1b1237;
+  --border: #3d3568;
+  --input: #3d3568;
+  --ring: #d2c0ff;
+  --radius: 0.5rem;
+
+  /* Okabe–Ito accents, lightened where needed for dark backgrounds */
+  --oi-orange: #e69f00;
+  --oi-sky: #56b4e9;
+  --oi-green: #2fc7a0;
+  --oi-yellow: #f0e442;
+  --oi-vermillion: #e8793a;
+  --oi-pink: #e08fc0;
+
+  /* Semantic */
+  --hard: var(--oi-orange);
+  --soft: var(--oi-sky);
+  --weekend-bg: #1a2142;
+  --weekend-line: #56b4e9;
+  --today: var(--primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-hard: var(--hard);
+  --color-soft: var(--soft);
+  --color-weekend: var(--weekend-bg);
+  --color-weekend-line: var(--weekend-line);
+  --color-oi-orange: var(--oi-orange);
+  --color-oi-sky: var(--oi-sky);
+  --color-oi-green: var(--oi-green);
+  --color-oi-yellow: var(--oi-yellow);
+  --color-oi-vermillion: var(--oi-vermillion);
+  --color-oi-pink: var(--oi-pink);
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Geist Variable', system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+/* Weekend columns: cooler tint + diagonal hatch so they differ by pattern, not just color */
+.weekend-surface {
+  background-color: var(--weekend-bg);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--weekend-line) 14%, transparent) 0 1px,
+    transparent 1px 9px
+  );
+}
+
+/* Hard due: solid, heavy. Soft due: dashed, light. */
+.due-hard {
+  border-left: 4px solid var(--hard);
+}
+.due-soft {
+  border-left: 3px dashed var(--soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
