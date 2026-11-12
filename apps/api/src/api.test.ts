@@ -65,6 +65,16 @@ describe('auth', () => {
   });
 });
 
+describe('login rate limit', () => {
+  it('locks out after repeated failures but never counts successes', async () => {
+    const login = (password: string) =>
+      t.app.request('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) });
+    for (let i = 0; i < 15; i++) expect((await login('pw')).status).toBe(200);
+    for (let i = 0; i < 10; i++) expect((await login('bad')).status).toBe(401);
+    expect((await login('pw')).status).toBe(429);
+  });
+});
+
 describe('scheduling & dependencies', () => {
   it('blocks scheduling until the blocker is scheduled, then unlocks (409 lists blockers)', async () => {
     const { a, b } = await chain();

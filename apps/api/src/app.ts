@@ -93,12 +93,14 @@ export function createApp(opts: AppOptions) {
   const loginLimit = createLimiter(10, 15 * 60 * 1000);
   app.post('/api/auth/login', async (c) => {
     const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
-    if (!loginLimit(ip)) throw new HttpError(429, 'Too Many Requests', 'Try again later');
+    if (!loginLimit.allowed(ip)) throw new HttpError(429, 'Too Many Requests', 'Try again later');
     if (!cfg.adminPasswordHash) throw new HttpError(503, 'Not configured', 'Set ADMIN_PASSWORD_HASH');
     const { password } = (await c.req.json().catch(() => ({}))) as { password?: string };
     if (!password || !(await verifyPassword(password, cfg.adminPasswordHash))) {
+      loginLimit.fail(ip);
       throw new HttpError(401, 'Unauthorized', 'Wrong password');
     }
+    loginLimit.reset(ip);
     const s = createSession(db);
     setCookie(c, SESSION_COOKIE, s.id, {
       httpOnly: true,

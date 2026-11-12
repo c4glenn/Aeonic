@@ -16,11 +16,13 @@ export function Toolbar({
   setView,
   board,
   onAddProject,
+  onAddTask,
 }: {
   view: ViewState;
   setView: (p: Partial<ViewState>) => void;
   board: Board;
   onAddProject: () => void;
+  onAddTask: () => void;
 }) {
   const tags = useTagsQuery();
   const active = view.tags.length + view.importance.length + view.projects.length;
@@ -96,9 +98,14 @@ export function Toolbar({
         </PopoverContent>
       </Popover>
 
-      <Button className="ml-auto h-10 gap-1.5" onClick={onAddProject}>
-        <Plus className="size-4" /> Project
-      </Button>
+      <div className="ml-auto flex gap-2">
+        <Button variant="secondary" className="h-10 gap-1.5" onClick={onAddTask} disabled={!board.projects.length}>
+          <Plus className="size-4" /> Subtask
+        </Button>
+        <Button className="h-10 gap-1.5" onClick={onAddProject}>
+          <Plus className="size-4" /> Project
+        </Button>
+      </div>
     </div>
   );
 }

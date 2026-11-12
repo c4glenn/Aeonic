@@ -4,7 +4,7 @@ import {
   type CollisionDetection, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Settings as SettingsIcon } from 'lucide-react';
+import { Calendar, CalendarDays, ChartGantt, ListTodo, Settings as SettingsIcon } from 'lucide-react';
 import { ApiError, unwrap, type Project, type Task } from '@todo/client';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
@@ -16,6 +16,9 @@ import { ProjectCard } from '@/features/projects/ProjectCard';
 import { Settings } from '@/features/settings/Settings';
 import { Toolbar } from '@/features/toolbar/Toolbar';
 import { WeekStrip } from '@/features/week/WeekStrip';
+import { GanttView } from '@/features/views/GanttView';
+import { ListView } from '@/features/views/ListView';
+import { MonthView } from '@/features/views/MonthView';
 import { api, useLiveSync } from '@/lib/api';
 import { useBoard } from '@/lib/board';
 import { usePlanTask, useScheduleTask, useUnscheduleTask, useUpdateTask } from '@/lib/mutations';
@@ -65,31 +68,41 @@ export function App() {
   return <Shell onSignOut={() => void qc.resetQueries()} />;
 }
 
+type Mode = 'week' | 'list' | 'month' | 'gantt';
+const NAV: { hash: string; mode: Mode | 'settings'; label: string; icon: typeof Calendar }[] = [
+  { hash: '#/', mode: 'week', label: 'Week', icon: CalendarDays },
+  { hash: '#/list', mode: 'list', label: 'List', icon: ListTodo },
+  { hash: '#/month', mode: 'month', label: 'Month', icon: Calendar },
+  { hash: '#/gantt', mode: 'gantt', label: 'Gantt', icon: ChartGantt },
+  { hash: '#/settings', mode: 'settings', label: 'Settings', icon: SettingsIcon },
+];
+
 function Shell({ onSignOut }: { onSignOut: () => void }) {
   const hash = useHash();
-  const onSettings = hash === '#/settings';
+  const current = NAV.find((n) => n.hash === hash)?.mode ?? 'week';
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1500px] flex-col gap-3 px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
-      <header className="flex items-center justify-between">
-        <a href="#/" className="font-display text-xl font-bold tracking-tight">
+      <header className="flex items-center justify-between gap-2">
+        <a href="#/" className="font-display text-xl font-bold tracking-tight max-sm:sr-only">
           <span className="text-primary">▮▮</span> Todo Tool
         </a>
-        <nav className="flex gap-1">
-          <Button variant={onSettings ? 'ghost' : 'secondary'} className="h-10" asChild>
-            <a href="#/"><CalendarDays className="size-4" /> Board</a>
-          </Button>
-          <Button variant={onSettings ? 'secondary' : 'ghost'} className="h-10" asChild>
-            <a href="#/settings"><SettingsIcon className="size-4" /> Settings</a>
-          </Button>
+        <nav className="flex gap-1 max-sm:w-full max-sm:justify-between" aria-label="Views">
+          {NAV.map(({ hash: h, mode, label, icon: Icon }) => (
+            <Button key={mode} variant={current === mode ? 'secondary' : 'ghost'} className="h-10 max-sm:flex-1 max-sm:flex-col max-sm:gap-0 max-sm:text-[11px]" asChild>
+              <a href={h} aria-current={current === mode ? 'page' : undefined}>
+                <Icon className="size-4" /> {label}
+              </a>
+            </Button>
+          ))}
         </nav>
       </header>
-      {onSettings ? <Settings onSignOut={onSignOut} /> : <BoardView />}
+      {current === 'settings' ? <Settings onSignOut={onSignOut} /> : <BoardView mode={current} />}
       <Toaster />
     </div>
   );
 }
 
-function BoardView() {
+function BoardView({ mode }: { mode: Mode }) {
   const [view, setView] = useViewState();
   const board = useBoard(view);
   const [plan, setPlan] = useState<PlanTarget | null>(null);
@@ -142,34 +155,43 @@ function BoardView() {
 
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
-      <Toolbar view={view} setView={setView} board={board} onAddProject={() => setProjectDialog({ mode: 'create' })} />
+      <Toolbar view={view} setView={setView} board={board} onAddProject={() => setProjectDialog({ mode: 'create' })}
+        onAddTask={() => board.projects[0] && setTaskDialog({ mode: 'create', projectId: view.projects[0] ?? board.projects[0].id })}
+      />
 
-      <div className="z-20 -mx-4 bg-background px-4 pb-1 pt-1 max-sm:sticky max-sm:top-0 max-sm:max-h-[50dvh] max-sm:overflow-y-auto">
-        <WeekStrip board={board} {...handlers} />
-      </div>
+      {mode === 'week' && (
+        <>
+          <div className="z-20 -mx-4 bg-background px-4 pb-1 pt-1 max-sm:sticky max-sm:top-0 max-sm:max-h-[50dvh] max-sm:overflow-y-auto">
+            <WeekStrip board={board} {...handlers} />
+          </div>
 
-      {board.loading ? (
-        <p className="py-10 text-center text-muted-foreground">Loading…</p>
-      ) : board.projects.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-10 text-center">
-          <p className="mb-3 text-muted-foreground">No projects yet.</p>
-          <Button onClick={() => setProjectDialog({ mode: 'create' })}>Create your first project</Button>
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p: Project) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              board={board}
-              tasks={tasksByProject.get(p.id) ?? []}
-              onAddTask={(projectId) => setTaskDialog({ mode: 'create', projectId })}
-              onEdit={(project) => setProjectDialog({ mode: 'edit', project })}
-              {...handlers}
-            />
-          ))}
-        </div>
+          {board.loading ? (
+            <p className="py-10 text-center text-muted-foreground">Loading…</p>
+          ) : board.projects.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-10 text-center">
+              <p className="mb-3 text-muted-foreground">No projects yet.</p>
+              <Button onClick={() => setProjectDialog({ mode: 'create' })}>Create your first project</Button>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {projects.map((p: Project) => (
+                <ProjectCard
+                  key={p.id}
+                  project={p}
+                  board={board}
+                  tasks={tasksByProject.get(p.id) ?? []}
+                  onAddTask={(projectId) => setTaskDialog({ mode: 'create', projectId })}
+                  onEdit={(project) => setProjectDialog({ mode: 'edit', project })}
+                  {...handlers}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
+      {mode === 'list' && <ListView board={board} sort={view.sort} {...handlers} />}
+      {mode === 'month' && <MonthView board={board} {...handlers} />}
+      {mode === 'gantt' && <GanttView board={board} onOpen={handlers.onOpen} />}
 
       <DragOverlay dropAnimation={null}>
         {dragging && (

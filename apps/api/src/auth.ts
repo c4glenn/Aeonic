@@ -89,14 +89,14 @@ export function authMiddleware(db: Db): MiddlewareHandler<Env> {
   };
 }
 
-/** Tiny in-memory limiter for login attempts. */
+/** Tiny in-memory limiter that counts failed attempts only. */
 export function createLimiter(max: number, windowMs: number) {
-  const hits = new Map<string, number[]>();
-  return (key: string): boolean => {
-    const now = Date.now();
-    const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
-    recent.push(now);
-    hits.set(key, recent);
-    return recent.length <= max;
+  const fails = new Map<string, number[]>();
+  const recent = (key: string) => (fails.get(key) ?? []).filter((t) => Date.now() - t < windowMs);
+  return {
+    /** True while the key is still allowed to try. */
+    allowed: (key: string) => recent(key).length < max,
+    fail: (key: string) => void fails.set(key, [...recent(key), Date.now()]),
+    reset: (key: string) => void fails.delete(key),
   };
 }

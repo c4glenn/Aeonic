@@ -104,3 +104,26 @@ describe('scheduledDependents', () => {
     expect(scheduledDependents('a', [a, b, c]).map((t) => t.id)).toEqual(['b']);
   });
 });
+
+import { addMonths, mondayIndex, monthGrid, startOfMonth } from './index';
+
+describe('month helpers', () => {
+  it('shifts months across year boundaries', () => {
+    expect(addMonths('2026-11-11', 1)).toBe('2026-12-01');
+    expect(addMonths('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addMonths('2026-01-15', -1)).toBe('2025-12-01');
+    expect(startOfMonth('2026-11-11')).toBe('2026-11-01');
+  });
+  it('builds Monday-first grids covering the whole month', () => {
+    expect(mondayIndex('2026-11-01')).toBe(6); // Sunday
+    const g = monthGrid('2026-11-11');
+    expect(g[0]![0]).toBe('2026-10-26');
+    expect(g.at(-1)!.at(-1)).toBe('2026-12-06');
+    expect(g.every((w) => w.length === 7)).toBe(true);
+    expect(g.flat()).toContain('2026-11-30');
+    // a month starting on Monday needs no leading days
+    expect(monthGrid('2026-06-10')[0]![0]).toBe('2026-06-01');
+    expect(monthGrid('2027-02-10')).toHaveLength(4); // Feb 2027 starts Monday, 28 days
+    expect(monthGrid('2026-02-10')).toHaveLength(5); // Feb 2026 starts Sunday
+  });
+});

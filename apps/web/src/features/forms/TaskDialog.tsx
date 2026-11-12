@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Board } from '@/lib/board';
-import { useCreateTask, useDeleteTask, useSetDependencies, useUpdateTask } from '@/lib/mutations';
+import { useCreateTask, useDeleteTask, useScheduleTask, useSetDependencies, useUnscheduleTask, useUpdateTask } from '@/lib/mutations';
 import { ImportancePicker, MultiSelect, TagInput } from './fields';
 
 export type TaskDialogState = { mode: 'create'; projectId: string } | { mode: 'edit'; task: Task } | null;
@@ -19,6 +19,7 @@ interface Form {
   importance: number;
   hardDue: string;
   softDue: string;
+  scheduledDate: string;
   tags: string[];
   blockedBy: string[];
 }
@@ -28,10 +29,10 @@ function initial(state: NonNullable<TaskDialogState>): Form {
     const t = state.task;
     return {
       title: t.title, projectId: t.projectId, importance: t.importance,
-      hardDue: t.hardDue ?? '', softDue: t.softDue ?? '', tags: t.tags, blockedBy: t.blockedBy,
+      hardDue: t.hardDue ?? '', softDue: t.softDue ?? '', scheduledDate: t.scheduledDate ?? '', tags: t.tags, blockedBy: t.blockedBy,
     };
   }
-  return { title: '', projectId: state.projectId, importance: 2, hardDue: '', softDue: '', tags: [], blockedBy: [] };
+  return { title: '', projectId: state.projectId, importance: 2, hardDue: '', softDue: '', scheduledDate: '', tags: [], blockedBy: [] };
 }
 
 export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; board: Board; onClose: () => void }) {
@@ -40,6 +41,8 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
   const update = useUpdateTask();
   const del = useDeleteTask();
   const setDeps = useSetDependencies();
+  const schedule = useScheduleTask();
+  const unschedule = useUnscheduleTask();
 
   useEffect(() => setF(state ? initial(state) : null), [state]);
   if (!state || !f) return <Dialog open={false} />;
@@ -63,13 +66,21 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
       title: f.title.trim(), importance: f.importance, tags: f.tags,
       hardDue: f.hardDue || null, softDue: f.softDue || null,
     };
-    if (editing) {
-      await update.mutateAsync({ id: editing.id, patch: { ...common, projectId: f.projectId } });
-      if (f.blockedBy.join() !== editing.blockedBy.join()) await setDeps.mutateAsync({ id: editing.id, blockedBy: f.blockedBy });
-    } else {
-      await create.mutateAsync({ ...common, projectId: f.projectId, blockedBy: f.blockedBy });
+    try {
+      if (editing) {
+        await update.mutateAsync({ id: editing.id, patch: { ...common, projectId: f.projectId } });
+        if (f.blockedBy.join() !== editing.blockedBy.join()) await setDeps.mutateAsync({ id: editing.id, blockedBy: f.blockedBy });
+        if (f.scheduledDate !== (editing.scheduledDate ?? '')) {
+          if (f.scheduledDate) await schedule.mutateAsync({ id: editing.id, date: f.scheduledDate });
+          else await unschedule.mutateAsync(editing.id);
+        }
+      } else {
+        await create.mutateAsync({ ...common, projectId: f.projectId, blockedBy: f.blockedBy });
+      }
+      onClose();
+    } catch {
+      /* mutation hooks already toasted the error; keep the dialog open */
     }
-    onClose();
   };
 
   return (
@@ -106,6 +117,22 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
               <Input id="t-soft" type="date" value={f.softDue} onChange={(e) => set('softDue', e.target.value)} className="h-11" />
             </div>
           </div>
+          {editing && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="t-sched">Scheduled for</Label>
+              <Input
+                id="t-sched"
+                type="date"
+                value={f.scheduledDate}
+                disabled={!editing.scheduledDate && !board.unblocked(editing)}
+                onChange={(e) => set('scheduledDate', e.target.value)}
+                className="h-11"
+              />
+              {!editing.scheduledDate && !board.unblocked(editing) && (
+                <p className="text-xs text-muted-foreground">Locked until its blockers are scheduled or done.</p>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label>Tags</Label>
             <TagInput value={f.tags} onChange={(v) => set('tags', v)} />
