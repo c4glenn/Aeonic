@@ -90,7 +90,7 @@ export function ListView({ board, sort, ...h }: { board: Board; sort: 'urgency' 
             <ImportanceMark level={t.importance} />
             <UrgencyMark urgency={board.urgencies.get(t.id)} />
           </div>
-          {locked && <div className="mt-1"><LockMark names={board.blockerTitles(t)} /></div>}
+          {locked && <div className="mt-1"><LockMark names={board.blockerTitles(t)} total={t.blockedBy.length} /></div>}
           {t.tags.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1 lg:hidden">
               {t.tags.map((tag) => <TagChip key={tag} tag={tag} />)}

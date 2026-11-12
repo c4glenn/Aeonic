@@ -28,7 +28,7 @@ test('list view: rows, locked state, grouping, completing unlocks dependents', a
   await page.goto('/#/list');
   const row = (t: string) => page.locator('tr', { has: page.getByRole('button', { name: t, exact: true }) });
   await expect(row('ListP A')).toBeVisible();
-  await expect(row('ListP D').getByText(/after ListP C/)).toBeVisible(); // locked, names its blocker
+  await expect(row('ListP D').getByText(/Waiting on ListP C/)).toBeVisible(); // locked, names its blocker
   await expect(row('ListP A').getByText(/^Due /)).toBeVisible();
   await expect(row('ListP B').getByText(/^Target /)).toBeVisible();
 
@@ -38,7 +38,7 @@ test('list view: rows, locked state, grouping, completing unlocks dependents', a
   await row('ListP C').getByRole('checkbox').click();
   // completed tasks leave the list (Show completed is off) and unlock their dependents
   await expect(row('ListP C')).toHaveCount(0);
-  await expect(row('ListP D').getByText(/after ListP C/)).toHaveCount(0);
+  await expect(row('ListP D').getByText(/Waiting on ListP C/)).toHaveCount(0);
 });
 
 test.describe('month', () => {

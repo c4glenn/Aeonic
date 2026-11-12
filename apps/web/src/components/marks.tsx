@@ -85,11 +85,16 @@ export function UrgencyMark({ urgency, className }: { urgency: Urgency | null | 
   );
 }
 
-export function LockMark({ names }: { names: string[] }) {
+/** "Waiting on A, B (1 of 3 ready)" — every outstanding blocker is named; ready = scheduled or done. */
+export function LockMark({ names, total }: { names: string[]; total?: number }) {
+  const ready = total !== undefined ? Math.max(0, total - names.length) : 0;
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" title={`Waiting on: ${names.join(', ')}`}>
-      <Lock className="size-3" aria-hidden />
-      {names.length ? `after ${names[0]}${names.length > 1 ? ` +${names.length - 1}` : ''}` : 'locked'}
+    <span className="inline-flex items-start gap-1 text-[11px] text-muted-foreground" title={`Waiting on: ${names.join(', ')}`}>
+      <Lock className="mt-0.5 size-3 shrink-0" aria-hidden />
+      <span className="break-words">
+        {names.length ? `Waiting on ${names.join(', ')}` : 'Locked'}
+        {total !== undefined && total > 1 && names.length > 0 ? ` (${ready} of ${total} ready)` : ''}
+      </span>
     </span>
   );
 }

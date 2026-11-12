@@ -125,6 +125,77 @@ describe('scheduling & dependencies', () => {
   });
 });
 
+describe('multiple blockers', () => {
+  async function trio() {
+    const p1 = (await t.call('POST', '/api/v1/projects', { name: 'One' })).json;
+    const p2 = (await t.call('POST', '/api/v1/projects', { name: 'Two' })).json;
+    const mk = async (projectId: string, title: string, extra: object = {}) =>
+      (await t.call('POST', '/api/v1/tasks', { projectId, title, ...extra })).json;
+    const a = await mk(p1.id, 'A');
+    const b = await mk(p2.id, 'B'); // a different project
+    const c = await mk(p1.id, 'C', { blockedBy: [a.id, b.id] });
+    return { a, b, c };
+  }
+  const view = async (id: string) => (await t.call('GET', `/api/v1/tasks/${id}`)).json;
+
+  it('stays locked until EVERY blocker is scheduled or done, across projects', async () => {
+    const { a, b, c } = await trio();
+    expect((await view(c.id)).blockedBy.sort()).toEqual([a.id, b.id].sort());
+    expect((await view(c.id)).blockers).toHaveLength(2);
+
+    await t.call('PUT', `/api/v1/tasks/${a.id}/schedule`, { date: '2026-11-12' });
+    const half = await view(c.id);
+    expect(half.unblocked).toBe(false);
+    expect(half.blockers).toEqual([{ id: b.id, title: 'B' }]); // only the outstanding one is listed
+    const refused = await t.call('PUT', `/api/v1/tasks/${c.id}/schedule`, { date: '2026-11-13' });
+    expect(refused.status).toBe(409);
+    expect(refused.json.blockers).toEqual([{ id: b.id, title: 'B' }]);
+
+    // completing counts as ready, just like scheduling
+    await t.call('PATCH', `/api/v1/tasks/${b.id}`, { done: true });
+    expect((await view(c.id)).unblocked).toBe(true);
+    expect((await t.call('PUT', `/api/v1/tasks/${c.id}/schedule`, { date: '2026-11-13' })).status).toBe(200);
+  });
+
+  it('un-scheduling one of several blockers re-locks the dependent', async () => {
+    const { a, b, c } = await trio();
+    for (const id of [a.id, b.id]) await t.call('PUT', `/api/v1/tasks/${id}/schedule`, { date: '2026-11-12' });
+    expect((await view(c.id)).unblocked).toBe(true);
+    const un = await t.call('DELETE', `/api/v1/tasks/${a.id}/schedule`);
+    expect(un.status).toBe(200);
+    expect((await view(c.id)).unblocked).toBe(false);
+  });
+
+  it('replacing the blocker list, removing one, and clearing all', async () => {
+    const { a, b, c } = await trio();
+    const one = await t.call('PUT', `/api/v1/tasks/${c.id}/dependencies`, { blockedBy: [b.id] });
+    expect(one.json.blockedBy).toEqual([b.id]);
+    expect((await view(a.id)).blocks).toEqual([]);
+    expect((await view(b.id)).blocks).toEqual([c.id]);
+    expect((await t.call('PUT', `/api/v1/tasks/${c.id}/dependencies`, { blockedBy: [] })).json.unblocked).toBe(true);
+    // duplicates collapse
+    expect((await t.call('PUT', `/api/v1/tasks/${c.id}/dependencies`, { blockedBy: [a.id, a.id, b.id] })).json.blockedBy).toHaveLength(2);
+  });
+
+  it('rejects cycles through a task with several parents, and unknown ids', async () => {
+    const { a, b, c } = await trio();
+    // c depends on a and b; making a depend on c (directly) or b depend on c would close a loop
+    expect((await t.call('PUT', `/api/v1/tasks/${a.id}/dependencies`, { blockedBy: [c.id] })).status).toBe(422);
+    expect((await t.call('PUT', `/api/v1/tasks/${b.id}/dependencies`, { blockedBy: [a.id, c.id] })).status).toBe(422);
+    expect((await t.call('PUT', `/api/v1/tasks/${b.id}/dependencies`, { blockedBy: [a.id] })).status).toBe(200); // diamond is fine
+    expect((await t.call('PUT', `/api/v1/tasks/${c.id}/dependencies`, { blockedBy: [a.id, 'nope'] })).status).toBe(422);
+  });
+
+  it('deleting one blocker removes it from the list and may unlock the task', async () => {
+    const { a, b, c } = await trio();
+    await t.call('PUT', `/api/v1/tasks/${a.id}/schedule`, { date: '2026-11-12' });
+    await t.call('DELETE', `/api/v1/tasks/${b.id}`);
+    const after = await view(c.id);
+    expect(after.blockedBy).toEqual([a.id]);
+    expect(after.unblocked).toBe(true);
+  });
+});
+
 describe('urgency, filters, sort', () => {
   it('inherits urgency from the downstream tree', async () => {
     const { a, c } = await chain();

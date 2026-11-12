@@ -13,7 +13,8 @@ test('week strip shows 7 days with weekends styled differently', async ({ page }
 
 test('drag → whole subtask schedules it and unlocks its dependent', async ({ page }) => {
   await signIn(page);
-  await expect(page.getByText('Locked (2)')).toBeVisible();
+  const shed = page.locator('article', { has: page.getByRole('heading', { name: 'Launch the garden shed' }) }); // other specs add projects too
+  await expect(shed.getByText('Locked (2)')).toBeVisible();
   const day = page.locator('section[data-date]').nth(1);
 
   await dragTo(page, 'Drag Sketch layout', day);
@@ -23,7 +24,7 @@ test('drag → whole subtask schedules it and unlocks its dependent', async ({ p
   await expect(day.getByText('Sketch layout')).toBeVisible();
   // dependent "Buy materials" is now available (draggable handle appears); only "Build frame" remains locked
   await expect(page.getByRole('button', { name: 'Drag Buy materials' })).toBeVisible();
-  await expect(page.getByText('Locked (1)')).toBeVisible();
+  await expect(shed.getByText('Locked (1)')).toBeVisible();
 });
 
 test('drag → stated goal creates a scheduled child subtask', async ({ page }) => {

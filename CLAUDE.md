@@ -9,7 +9,7 @@ Core domain rules (live only in `packages/domain`):
 - **Scheduling a subtask unlocks its dependents.** A task is unblocked when every blocker is scheduled or done.
 - Subtasks have an optional **hard due** and **soft due** date, plus importance (1-4) and tags.
 - **Urgency** = days until the soonest due date (hard or soft) among the task and all its transitive dependents. Hard wins ties; overdue sorts first.
-- Dependencies must stay acyclic.
+- Dependencies must stay acyclic. A task may have **any number of blockers, from any project**; it unlocks only when *all* of them are scheduled or done. The UI names every outstanding blocker and shows progress (`Waiting on A, B (1 of 3 ready)`); the picker (`features/forms/BlockerPicker.tsx`) hides anything downstream of the task so a cycle can't be chosen.
 - Dates are plain `YYYY-MM-DD` strings. Never use `Date` for storage.
 - **Timed blocks:** a scheduled task may also have `startTime` (`HH:MM` wall clock, no timezone) and `durationMinutes` (5–1440, default 30, must end by midnight). Omitting the time on a schedule call makes the task untimed; unscheduling clears both.
 - **ICS calendars** are read-only subscriptions. Events are UTC instants (timed) or `YYYY-MM-DD` with an *exclusive* end (all-day); the browser clips them to its own local days.

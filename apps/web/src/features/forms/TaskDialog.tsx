@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Board } from '@/lib/board';
 import { useCreateTask, useDeleteTask, useScheduleTask, useSetDependencies, useUnscheduleTask, useUpdateTask } from '@/lib/mutations';
-import { ImportancePicker, MultiSelect, TagInput } from './fields';
+import { BlockerPicker } from './BlockerPicker';
+import { ImportancePicker, TagInput } from './fields';
 
 export type TaskDialogState = { mode: 'create'; projectId: string } | { mode: 'edit'; task: Task } | null;
 
@@ -59,9 +60,8 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
     banned.add(editing.id);
     for (const id of transitiveDependents(editing.id, dependentsMap([...board.taskById.values()]))) banned.add(id);
   }
-  const blockerOptions = [...board.taskById.values()]
-    .filter((t) => !banned.has(t.id) && !t.done && t.projectId === f.projectId)
-    .map((t) => ({ id: t.id, label: t.title }));
+  // any project, any number — a task unlocks once ALL of its blockers are scheduled or done
+  const blockerCandidates = [...board.taskById.values()].filter((t) => !banned.has(t.id) && !t.done);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF({ ...f, [k]: v });
 
@@ -74,7 +74,7 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
     try {
       if (editing) {
         await update.mutateAsync({ id: editing.id, patch: { ...common, projectId: f.projectId } });
-        if (f.blockedBy.join() !== editing.blockedBy.join()) await setDeps.mutateAsync({ id: editing.id, blockedBy: f.blockedBy });
+        if ([...f.blockedBy].sort().join() !== [...editing.blockedBy].sort().join()) await setDeps.mutateAsync({ id: editing.id, blockedBy: f.blockedBy });
         const slotChanged =
           f.startTime !== (editing.startTime ?? '') || (f.startTime !== '' && f.duration !== (editing.durationMinutes ?? 30));
         if (f.scheduledDate !== (editing.scheduledDate ?? '') || (f.scheduledDate && slotChanged)) {
@@ -109,7 +109,7 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Project</Label>
-            <Select value={f.projectId} onValueChange={(v) => setF({ ...f, projectId: v, blockedBy: [] })}>
+            <Select value={f.projectId} onValueChange={(v) => set('projectId', v)}>
               <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {board.projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -174,7 +174,13 @@ export function TaskDialog({ state, board, onClose }: { state: TaskDialogState; 
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Blocked by</Label>
-            <MultiSelect options={blockerOptions} value={f.blockedBy} onChange={(v) => set('blockedBy', v)} placeholder="Nothing — available now" />
+            <BlockerPicker
+              candidates={blockerCandidates}
+              taskById={board.taskById}
+              projectById={board.projectById}
+              value={f.blockedBy}
+              onChange={(v) => set('blockedBy', v)}
+            />
           </div>
           <DialogFooter className="gap-2 sm:justify-between">
             {editing ? (

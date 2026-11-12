@@ -87,7 +87,7 @@ export function ProjectCard({ project, board, tasks, onOpen, onPick, onToggleDon
             <li key={t.id} className="rounded-md border border-dashed px-2 py-1.5 text-sm">
               <button type="button" className="block w-full text-left" onClick={() => onOpen(t)}>
                 <span className="block break-words">{t.title}</span>
-                <LockMark names={board.blockerTitles(t)} />
+                <LockMark names={board.blockerTitles(t)} total={t.blockedBy.length} />
               </button>
             </li>
           ))}
